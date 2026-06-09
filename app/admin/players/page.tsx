@@ -19,7 +19,7 @@ export default function PlayersPage() {
     const supabase = createClient()
     const { data: ev } = await supabase
       .from('events')
-      .select('id, name, status, win_condition, drawn_numbers, created_at')
+      .select('id, name, status, win_condition, drawn_numbers, price_per_card, max_cards, cards_sold, prize_conditions, created_at')
       .in('status', ['active', 'setup'])
       .order('created_at', { ascending: false })
       .limit(1)
@@ -29,9 +29,9 @@ export default function PlayersPage() {
     if (ev) {
       const { data: cs } = await supabase
         .from('cards')
-        .select('id, event_id, player_name, numbers, marked_numbers, bingo_claimed_at, created_at')
+        .select('id, event_id, player_name, numbers, marked_numbers, bingo_claimed_at, alphanumeric_code, sale_id, sequence_number, created_at')
         .eq('event_id', ev.id)
-        .order('created_at', { ascending: true })
+        .order('sequence_number', { ascending: true })
       setCards(cs ?? [])
     }
     setLoading(false)
@@ -47,10 +47,10 @@ export default function PlayersPage() {
     setQrCodes(prev => ({ ...prev, [key]: qr }))
   }, [baseUrl, qrCodes])
 
-  const downloadQR = useCallback((dataUrl: string, playerName: string) => {
+  const downloadQR = useCallback((dataUrl: string, playerName: string, code: string) => {
     const a = document.createElement('a')
     a.href = dataUrl
-    a.download = `cartela-${playerName.replace(/\s+/g, '-').toLowerCase()}.png`
+    a.download = `cartela-${code}-${playerName.replace(/\s+/g, '-').toLowerCase()}.png`
     a.click()
   }, [])
 
@@ -70,21 +70,29 @@ export default function PlayersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-white text-4xl">CARTELAS</h1>
-        <p className="text-white/50 mt-1">{event.name} · {cards.length} jogadores</p>
+        <h1 className="font-display text-white text-4xl">JOGADORES</h1>
+        <p className="text-white/50 mt-1">{event.name} · {cards.length} cartelas vendidas</p>
       </div>
+
+      {cards.length === 0 && (
+        <div className="text-center py-12 text-white/40">
+          Nenhuma cartela vendida ainda.{' '}
+          <Link href="/admin/vendas" className="text-yellow-400 underline">Registrar vendas</Link>
+        </div>
+      )}
 
       <div className="grid gap-3">
         {cards.map(card => {
           const elderlyUrl = `${baseUrl}/card-elderly/${card.id}`
           const qrKey = `${card.id}-elderly`
+          const code = card.alphanumeric_code ?? `#${card.sequence_number ?? cards.indexOf(card) + 1}`
 
           return (
             <div key={card.id} className="bg-white/5 border border-white/10 rounded-2xl p-4">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="ball ball-yellow w-10 h-10 flex items-center justify-center font-display text-lg flex-shrink-0">
-                    {cards.indexOf(card) + 1}
+                  <div className="ball ball-yellow w-12 h-12 flex items-center justify-center font-display text-sm flex-shrink-0 text-center leading-tight">
+                    {code}
                   </div>
                   <div>
                     <p className="text-white font-semibold">{card.player_name}</p>
@@ -102,7 +110,7 @@ export default function PlayersPage() {
                   <button
                     onClick={() => {
                       generateQR(card.id)
-                      if (qrCodes[qrKey]) downloadQR(qrCodes[qrKey], card.player_name)
+                      if (qrCodes[qrKey]) downloadQR(qrCodes[qrKey], card.player_name, code)
                     }}
                     className="px-3 py-1.5 bg-white/10 text-white rounded-lg text-xs hover:bg-white/20 transition-colors"
                   >
