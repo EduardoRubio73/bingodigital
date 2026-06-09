@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand: #5C1F47;
+    --brand-light: #8B2E6F;
+    --brand-dark: #3a1230;
+    --yellow: #fcd34d;
+    --yellow-dark: #f59e0b;
+    --green: #27ae60;
+    --radius: 0.625rem;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Bebas Neue', cursive;
+    letter-spacing: 0.05em;
+  }
+
+  .brand-bg {
+    background: radial-gradient(ellipse at top, #7a2960 0%, #3a1230 70%);
+  }
+
+  .ball {
+    background: radial-gradient(circle at 35% 35%, #fff5 30%, transparent 70%),
+                radial-gradient(circle at 65% 65%, #0002 20%, transparent 60%),
+                var(--ball-color, #5C1F47);
+    border-radius: 50%;
+    box-shadow: inset -3px -3px 8px rgba(0,0,0,0.3),
+                inset 2px 2px 6px rgba(255,255,255,0.2),
+                0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  .ball-yellow {
+    --ball-color: #fcd34d;
+    color: #5C1F47;
+  }
+
+  .ball-purple {
+    --ball-color: #5C1F47;
+    color: white;
+  }
+
+  .ball-gray {
+    --ball-color: #e5e7eb;
+    color: #5C1F47;
+  }
+}
+
+@keyframes ball-pop {
+  0%   { transform: scale(0) rotate(-180deg); opacity: 0; }
+  70%  { transform: scale(1.15) rotate(5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(252,211,77,0.6); }
+  70%  { box-shadow: 0 0 0 16px rgba(252,211,77,0); }
+  100% { box-shadow: 0 0 0 0 rgba(252,211,77,0); }
+}
+
+@keyframes number-in {
+  0%   { transform: translateY(-40px) scale(0.5); opacity: 0; }
+  60%  { transform: translateY(6px) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes bingo-celebrate {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.06) rotate(1deg); }
+  75% { transform: scale(1.06) rotate(-1deg); }
+}
+
+.animate-ball-pop   { animation: ball-pop 0.45s cubic-bezier(.22,.68,0,1.2) forwards; }
+.animate-pulse-ring { animation: pulse-ring 1.2s ease-out infinite; }
+.animate-number-in  { animation: number-in 0.5s cubic-bezier(.22,.68,0,1.2) forwards; }
+.animate-celebrate  { animation: bingo-celebrate 0.6s ease-in-out; }
