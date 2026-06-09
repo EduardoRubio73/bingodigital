@@ -68,9 +68,31 @@ cards (
 
 **Fonte da verdade:** `events.drawn_numbers` — Supabase Realtime escuta UPDATE nessa coluna e propaga para todas as cartelas e telão.
 
-**RLS:**
-- `events`: leitura pública, escrita apenas admin autenticado
-- `cards`: leitura pública (acesso por UUID), escrita de `marked_numbers` e `bingo_claimed_at` pública (protegida pelo UUID da cartela)
+**Índices obrigatórios:**
+```sql
+-- FK não é indexada automaticamente pelo Postgres
+CREATE INDEX cards_event_id_idx ON cards (event_id);
+```
+
+**RLS Policies (padrão de performance: `(select auth.uid())` evita chamada por linha):**
+```sql
+-- events: leitura pública, escrita apenas admin autenticado
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY events_read ON events FOR SELECT USING (true);
+CREATE POLICY events_write ON events FOR ALL TO authenticated
+  USING ((select auth.uid()) IS NOT NULL);
+
+-- cards: leitura pública por UUID, escrita de marked_numbers/bingo_claimed_at pública
+ALTER TABLE cards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cards FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY cards_read ON cards FOR SELECT USING (true);
+CREATE POLICY cards_update ON cards FOR UPDATE
+  USING (true)
+  WITH CHECK (true);  -- proteção real é o UUID imprevisível da cartela
+```
 
 ---
 
