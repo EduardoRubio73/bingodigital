@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
-import { Geist } from 'next/font/google'
+import { DM_Sans } from 'next/font/google'
 import { Toaster } from 'sonner'
 import './globals.css'
 
-const geist = Geist({ subsets: ['latin'] })
+const dmSans = DM_Sans({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Bingo Digital — Fraternidade Sem Fronteiras',
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body className={geist.className}>
+      <body className={dmSans.className}>
         {children}
         <Toaster richColors position="top-center" />
       </body>
