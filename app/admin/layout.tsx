@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -43,7 +44,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen brand-bg">
       <header className="border-b border-white/10 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">🎰</span>
+          <Image src="/logo.png" alt="Bingo Sem Fronteiras" width={44} height={44} className="rounded-full" />
           <span className="font-display text-white text-xl tracking-widest">BINGO DIGITAL</span>
         </div>
         <nav className="flex items-center gap-1">

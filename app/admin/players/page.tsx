@@ -39,9 +39,9 @@ export default function PlayersPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const generateQR = useCallback(async (cardId: string, type: 'normal' | 'elderly') => {
-    const url = `${baseUrl}/${type === 'elderly' ? 'card-elderly' : 'card'}/${cardId}`
-    const key = `${cardId}-${type}`
+  const generateQR = useCallback(async (cardId: string) => {
+    const url = `${baseUrl}/card-elderly/${cardId}`
+    const key = `${cardId}-elderly`
     if (qrCodes[key]) return
     const qr = await QRCode.toDataURL(url, { width: 256, margin: 1, color: { dark: '#5C1F47', light: '#ffffff' } })
     setQrCodes(prev => ({ ...prev, [key]: qr }))
@@ -76,9 +76,8 @@ export default function PlayersPage() {
 
       <div className="grid gap-3">
         {cards.map(card => {
-          const normalUrl = `${baseUrl}/card/${card.id}`
           const elderlyUrl = `${baseUrl}/card-elderly/${card.id}`
-          const qrKey = `${card.id}-normal`
+          const qrKey = `${card.id}-elderly`
 
           return (
             <div key={card.id} className="bg-white/5 border border-white/10 rounded-2xl p-4">
@@ -96,17 +95,13 @@ export default function PlayersPage() {
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Link href={normalUrl} target="_blank"
-                    className="px-3 py-1.5 bg-white/10 text-white rounded-lg text-xs hover:bg-white/20 transition-colors">
-                    Cartela Normal
-                  </Link>
                   <Link href={elderlyUrl} target="_blank"
                     className="px-3 py-1.5 bg-[#fcd34d]/20 text-[#fcd34d] rounded-lg text-xs hover:bg-[#fcd34d]/30 transition-colors">
-                    Versão Idoso
+                    Ver Cartela
                   </Link>
                   <button
                     onClick={() => {
-                      generateQR(card.id, 'normal')
+                      generateQR(card.id)
                       if (qrCodes[qrKey]) downloadQR(qrCodes[qrKey], card.player_name)
                     }}
                     className="px-3 py-1.5 bg-white/10 text-white rounded-lg text-xs hover:bg-white/20 transition-colors"
@@ -119,7 +114,7 @@ export default function PlayersPage() {
               {qrCodes[qrKey] && (
                 <div className="mt-3 flex gap-3 items-center">
                   <img src={qrCodes[qrKey]} alt="QR" className="w-16 h-16 rounded-lg" />
-                  <p className="text-white/40 text-xs break-all">{normalUrl}</p>
+                  <p className="text-white/40 text-xs break-all">{elderlyUrl}</p>
                 </div>
               )}
             </div>

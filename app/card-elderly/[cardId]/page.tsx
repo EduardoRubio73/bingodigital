@@ -48,6 +48,96 @@ export default function CardElderlyPage() {
     )
   }
 
+  const isEventFinished = event?.status === 'finished'
+
+  if (isEventFinished) {
+    return (
+      <div style={{
+        minHeight: '100svh',
+        background: '#1a0a12',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        maxWidth: 420,
+        margin: '0 auto',
+        boxSizing: 'border-box',
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ fontSize: 72, marginBottom: 16 }}>🔒</div>
+          <p style={{ fontSize: 32, fontWeight: 'bold', color: '#fcd34d', margin: '0 0 8px' }}>Evento Encerrado</p>
+          <p style={{ fontSize: 16, color: '#fbbf24', margin: '0 0 24px' }}>Esta cartela foi arquivada</p>
+          <p style={{ fontSize: 18, fontWeight: '600', color: 'white', margin: 0 }}>{card.player_name}</p>
+        </div>
+
+        {/* Grid somente leitura */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(5, 1fr)',
+          gap: 8,
+          marginBottom: 20,
+          width: '100%',
+        }}>
+          {card.numbers.map(num => {
+            const isMarked = card.marked_numbers.includes(num)
+            const bg = isMarked ? '#5C1F47' : '#2d1b24'
+            const color = isMarked ? 'white' : '#8B2E6F'
+
+            return (
+              <div
+                key={num}
+                style={{
+                  aspectRatio: '1',
+                  minHeight: 56,
+                  background: bg,
+                  color,
+                  border: `2px solid ${isMarked ? '#3a1230' : '#4a2a3a'}`,
+                  borderRadius: 10,
+                  fontSize: 24,
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'Segoe UI, sans-serif',
+                  opacity: isMarked ? 1 : 0.6,
+                }}
+              >
+                {num}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Status final */}
+        {card.bingo_claimed_at ? (
+          <div style={{
+            background: 'rgba(39, 174, 96, 0.15)',
+            border: '2px solid #27ae60',
+            borderRadius: 12,
+            padding: 16,
+            textAlign: 'center',
+            width: '100%',
+          }}>
+            <p style={{ fontSize: 24, margin: 0, color: '#27ae60' }}>✅</p>
+            <p style={{ fontSize: 18, fontWeight: 'bold', color: '#27ae60', margin: '8px 0 0' }}>Você Ganhou!</p>
+            <p style={{ fontSize: 14, color: '#a0e4c3', margin: '4px 0 0' }}>BINGO validado pelo organizador</p>
+          </div>
+        ) : (
+          <div style={{
+            background: 'rgba(200, 200, 200, 0.1)',
+            borderRadius: 12,
+            padding: 16,
+            textAlign: 'center',
+            width: '100%',
+          }}>
+            <p style={{ fontSize: 14, color: '#ccc', margin: 0 }}>Aguarde o próximo evento</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div style={{
       minHeight: '100svh',
@@ -105,6 +195,7 @@ export default function CardElderlyPage() {
             <button
               key={num}
               onClick={() => toggleNumber(num)}
+              disabled={isEventFinished}
               style={{
                 aspectRatio: '1',
                 minHeight: 64,
@@ -114,7 +205,7 @@ export default function CardElderlyPage() {
                 borderRadius: 10,
                 fontSize: 32,
                 fontWeight: 'bold',
-                cursor: 'pointer',
+                cursor: isEventFinished ? 'default' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -122,6 +213,7 @@ export default function CardElderlyPage() {
                 userSelect: 'none',
                 transition: 'all 0.15s',
                 fontFamily: 'Segoe UI, sans-serif',
+                opacity: isEventFinished ? 0.5 : 1,
                 ...extraStyle,
               }}
             >
@@ -159,7 +251,7 @@ export default function CardElderlyPage() {
       {/* Botão BINGO — grande */}
       <button
         onClick={handleBingo}
-        disabled={!canWin || !!card.bingo_claimed_at}
+        disabled={!canWin || !!card.bingo_claimed_at || isEventFinished}
         style={{
           width: '100%',
           padding: '18px 0',
@@ -167,14 +259,14 @@ export default function CardElderlyPage() {
           border: 'none',
           fontSize: 26,
           fontWeight: 'bold',
-          cursor: canWin && !card.bingo_claimed_at ? 'pointer' : 'not-allowed',
-          background: card.bingo_claimed_at
+          cursor: (canWin && !card.bingo_claimed_at && !isEventFinished) ? 'pointer' : 'not-allowed',
+          background: card.bingo_claimed_at || isEventFinished
             ? '#e5e7eb'
             : canWin
             ? 'linear-gradient(135deg, #27ae60, #2ecc71)'
             : '#e5e7eb',
-          color: card.bingo_claimed_at || !canWin ? '#9ca3af' : 'white',
-          boxShadow: canWin && !card.bingo_claimed_at ? '0 4px 16px rgba(39,174,96,0.4)' : 'none',
+          color: card.bingo_claimed_at || !canWin || isEventFinished ? '#9ca3af' : 'white',
+          boxShadow: (canWin && !card.bingo_claimed_at && !isEventFinished) ? '0 4px 16px rgba(39,174,96,0.4)' : 'none',
           transition: 'all 0.2s',
           marginBottom: 8,
         }}
