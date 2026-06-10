@@ -820,8 +820,9 @@ export default function LandingPage() {
           <Image
             src="/ws_bingo.png"
             alt="Bingo Solidário — Caravana da Saúde 2026"
-            width={1920}
-            height={900}
+            width={0}
+            height={0}
+            sizes="100vw"
             priority
             style={{ width: '100%', height: 'auto', display: 'block' }}
           />
