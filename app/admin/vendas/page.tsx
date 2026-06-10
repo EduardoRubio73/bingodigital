@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import { Plus, Users, DollarSign, CreditCard, AlertCircle, ChevronDown, CheckCircle, XCircle, Clock, TicketX } from 'lucide-react'
+import { Plus, Users, DollarSign, CreditCard, AlertCircle, CheckCircle, XCircle, Clock, TicketX, ChevronDown, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { generateCardNumbers, generateRandomAlphanumericCode, formatCurrency } from '@/lib/utils'
 import type { BingoEvent, CardSale, BingoCard, PaymentMethod, PaymentStatus } from '@/lib/supabase/types'
@@ -16,6 +16,10 @@ export default function VendasPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
+  // Custom dropdown state
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
   // Form state
   const [buyerName, setBuyerName] = useState('')
   const [buyerContact, setBuyerContact] = useState('')
@@ -23,6 +27,12 @@ export default function VendasPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix')
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pendente')
   const [notes, setNotes] = useState('')
+
+  // WhatsApp search
+  const [contactSuggestions, setContactSuggestions] = useState<{ name: string; contact: string }[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
 
   const fetchData = useCallback(async () => {
     const supabase = createClient()
@@ -64,6 +74,57 @@ export default function VendasPage() {
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { fetchSales(selectedEventId) }, [selectedEventId, fetchSales])
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const searchContacts = useCallback(async (value: string) => {
+    if (value.length < 2) { setContactSuggestions([]); setShowSuggestions(false); return }
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('card_sales')
+      .select('buyer_name, buyer_contact')
+      .ilike('buyer_contact', `%${value}%`)
+      .not('buyer_contact', 'is', null)
+      .limit(20)
+
+    if (!data) return
+    // Deduplicate by contact
+    const seen = new Set<string>()
+    const unique = data.filter(r => {
+      const k = r.buyer_contact ?? ''
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    }).slice(0, 5).map(r => ({ name: r.buyer_name, contact: r.buyer_contact ?? '' }))
+
+    setContactSuggestions(unique)
+    setShowSuggestions(unique.length > 0)
+  }, [])
+
+  const handleContactChange = useCallback((value: string) => {
+    setBuyerContact(value)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => searchContacts(value), 300)
+  }, [searchContacts])
+
+  const selectSuggestion = useCallback((s: { name: string; contact: string }) => {
+    setBuyerName(s.name)
+    setBuyerContact(s.contact)
+    setShowSuggestions(false)
+    setContactSuggestions([])
+  }, [])
+
   const selectedEvent = events.find(e => e.id === selectedEventId)
   const vagas = selectedEvent ? selectedEvent.max_cards - selectedEvent.cards_sold : 0
   const totalArrecadado = sales.filter(s => s.payment_status === 'pago').reduce((sum, s) => sum + s.amount_paid, 0)
@@ -83,7 +144,6 @@ export default function VendasPage() {
     setSubmitting(true)
     const supabase = createClient()
 
-    // Buscar codes já usados no evento para gerar códigos sem colisão
     const { data: existingCards } = await supabase
       .from('cards')
       .select('alphanumeric_code, sequence_number')
@@ -95,8 +155,6 @@ export default function VendasPage() {
       .filter(Boolean) as string[]
 
     const lastSeq = existingCards?.[0]?.sequence_number ?? 0
-
-    // Criar a venda
     const amountPaid = paymentStatus === 'pago' ? qty * (selectedEvent?.price_per_card ?? 0) : 0
 
     const { data: saleData, error: saleError } = await supabase
@@ -121,7 +179,6 @@ export default function VendasPage() {
       return
     }
 
-    // Criar as cartelas com códigos aleatórios
     const cardsToInsert = Array.from({ length: qty }, (_, i) => {
       const code = generateRandomAlphanumericCode(usedCodes)
       usedCodes.push(code)
@@ -144,7 +201,6 @@ export default function VendasPage() {
       return
     }
 
-    // Atualizar cards_sold no evento
     await supabase
       .from('events')
       .update({ cards_sold: (selectedEvent?.cards_sold ?? 0) + qty })
@@ -175,27 +231,78 @@ export default function VendasPage() {
     return <div className="text-white/50 text-center py-20">Carregando...</div>
   }
 
+  const selectedEventLabel = selectedEvent
+    ? `${selectedEvent.name} (${selectedEvent.cards_sold}/${selectedEvent.max_cards} cartelas · ${formatCurrency(selectedEvent.price_per_card)} cada)`
+    : '— Selecione um evento —'
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <h1 className="font-display text-3xl text-white tracking-widest">VENDAS DE CARTELAS</h1>
 
-      {/* Seletor de evento */}
+      {/* Seletor de evento — dropdown customizado */}
       <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
         <label className="text-white/60 text-sm block mb-2">Evento</label>
-        <div className="relative">
-          <select
-            value={selectedEventId}
-            onChange={e => setSelectedEventId(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-yellow-400/50 appearance-none pr-10"
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setDropdownOpen(o => !o)}
+            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-left text-white focus:outline-none focus:border-yellow-400/50 flex items-center justify-between"
           >
-            <option value="">— Selecione um evento —</option>
-            {events.map(ev => (
-              <option key={ev.id} value={ev.id} className="bg-[#5C1F47]">
-                {ev.name} ({ev.cards_sold}/{ev.max_cards} cartelas · {formatCurrency(ev.price_per_card)} cada)
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" size={16} />
+            <span className={selectedEventId ? 'text-white' : 'text-white/40'}>{selectedEventLabel}</span>
+            <ChevronDown size={16} className={`text-white/40 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {dropdownOpen && (
+            <div className="absolute z-50 mt-1 w-full bg-[#3a1230] border border-white/20 rounded-xl shadow-2xl overflow-hidden">
+              <div
+                className="px-4 py-3 text-white/40 text-sm hover:bg-white/5 cursor-pointer"
+                onMouseDown={() => { setSelectedEventId(''); setDropdownOpen(false) }}
+              >
+                — Selecione um evento —
+              </div>
+              {events.map(ev => {
+                const esgotado = ev.cards_sold >= ev.max_cards
+                return (
+                  <div
+                    key={ev.id}
+                    onMouseDown={() => {
+                      if (esgotado) return
+                      setSelectedEventId(ev.id)
+                      setDropdownOpen(false)
+                    }}
+                    className={`px-4 py-3 flex items-center justify-between gap-3 border-t border-white/5 transition-colors ${
+                      esgotado
+                        ? 'opacity-60 cursor-not-allowed'
+                        : 'hover:bg-white/10 cursor-pointer'
+                    } ${selectedEventId === ev.id ? 'bg-yellow-400/10' : ''}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <span className="text-white text-sm font-medium truncate block">{ev.name}</span>
+                      <span className="text-white/40 text-xs">
+                        {ev.cards_sold}/{ev.max_cards} cartelas · {formatCurrency(ev.price_per_card)} cada
+                      </span>
+                    </div>
+                    {esgotado ? (
+                      <span className="flex-shrink-0 text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-0.5 rounded-full">
+                        Esgotado
+                      </span>
+                    ) : (
+                      <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full border ${
+                        ev.status === 'active'
+                          ? 'text-green-400 bg-green-400/10 border-green-400/20'
+                          : 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20'
+                      }`}>
+                        {ev.status === 'active' ? 'Ativo' : 'Setup'}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+              {events.length === 0 && (
+                <div className="px-4 py-3 text-white/30 text-sm">Nenhum evento disponível</div>
+              )}
+            </div>
+          )}
         </div>
 
         {events.length === 0 && (
@@ -255,7 +362,7 @@ export default function VendasPage() {
             </div>
           )}
 
-          {/* Lista de vendas — ACIMA do formulário */}
+          {/* Lista de vendas */}
           {sales.length > 0 && (
             <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
               <div className="px-6 py-4 border-b border-white/10 flex items-center gap-2">
@@ -296,15 +403,37 @@ export default function VendasPage() {
                       required
                     />
                   </div>
-                  <div>
-                    <label className="text-white/60 text-sm block mb-1">WhatsApp (tel/email)</label>
+
+                  {/* Campo WhatsApp com busca */}
+                  <div className="relative" ref={suggestionsRef}>
+                    <label className="text-white/60 text-sm block mb-1">
+                      <span className="flex items-center gap-1.5">
+                        <Search size={12} className="text-yellow-400" />
+                        WhatsApp — busca comprador existente
+                      </span>
+                    </label>
                     <input
                       type="text"
                       value={buyerContact}
-                      onChange={e => setBuyerContact(e.target.value)}
+                      onChange={e => handleContactChange(e.target.value)}
+                      onFocus={() => buyerContact.length >= 2 && setShowSuggestions(contactSuggestions.length > 0)}
                       placeholder="(11) 99999-9999"
                       className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-yellow-400/50"
                     />
+                    {showSuggestions && contactSuggestions.length > 0 && (
+                      <div className="absolute z-50 mt-1 w-full bg-[#3a1230] border border-white/20 rounded-xl shadow-2xl overflow-hidden">
+                        {contactSuggestions.map((s, i) => (
+                          <div
+                            key={i}
+                            onMouseDown={() => selectSuggestion(s)}
+                            className="px-4 py-3 hover:bg-white/10 cursor-pointer border-b border-white/5 last:border-0"
+                          >
+                            <div className="text-white text-sm font-medium">{s.name}</div>
+                            <div className="text-white/40 text-xs">{s.contact}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
