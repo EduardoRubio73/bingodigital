@@ -148,8 +148,8 @@ export default function PlayersPage() {
         {players.map(player => {
           const playerKey = player.contact || player.name
           const isOpen = expanded.has(playerKey)
-          const totalCards = player.sales.reduce((s, g) => s + g.cards.length, 0)
           const activeSales = player.sales.filter(s => s.eventStatus !== 'finished')
+          const totalCards = activeSales.reduce((s, g) => s + g.cards.length, 0)
 
           return (
             <div key={playerKey} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
