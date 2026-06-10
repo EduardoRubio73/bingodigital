@@ -6,6 +6,13 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
+const ERROR_LABELS: Record<string, string> = {
+  'Invalid login credentials': 'E-mail ou senha incorretos.',
+  'Email not confirmed': 'Confirme seu e-mail antes de entrar.',
+  'User not found': 'Usuário não encontrado.',
+  'Invalid email or password': 'E-mail ou senha incorretos.',
+}
+
 const BALLS = [
   { color: '#e74c3c', number: 7,  size: 64, top: '12%', left: '8%',  delay: '0s',    duration: '7s'  },
   { color: '#3498db', number: 23, size: 52, top: '70%', left: '5%',  delay: '1.5s',  duration: '9s'  },
@@ -21,15 +28,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPass, setShowPass] = useState(false)
+  const [loginError, setLoginError] = useState('')
   const router = useRouter()
 
   const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setLoginError('')
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      toast.error(error.message)
+      const msg = ERROR_LABELS[error.message] ?? error.message
+      setLoginError(msg)
+      toast.error(msg)
     } else {
       router.push('/admin')
     }
@@ -139,6 +150,13 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+
+            {loginError && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+                <span className="text-base leading-none mt-0.5">⚠️</span>
+                <span>{loginError}</span>
+              </div>
+            )}
 
             <button
               type="submit"
