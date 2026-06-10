@@ -36,33 +36,10 @@ export default function LandingPage() {
         .lp { font-family: 'Nunito', sans-serif; background: var(--cream); color: var(--dark); overflow-x: hidden; }
 
         /* HERO */
-        .lp-hero {
-          min-height: 100vh;
+        .lp-hero-img {
+          width: 100%;
+          line-height: 0;
           background: var(--maroon);
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-          padding: 40px 180px 60px;
-        }
-        .lp-hero::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background-image: radial-gradient(circle, rgba(255,255,255,.06) 1px, transparent 1px);
-          background-size: 36px 36px;
-          pointer-events: none;
-        }
-        .lp-hero::after {
-          content: '';
-          position: absolute;
-          width: 700px; height: 700px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(232,160,32,.22) 0%, transparent 70%);
-          top: -200px; right: -200px;
-          pointer-events: none;
         }
 
         /* BALL COLUMNS */
@@ -839,134 +816,15 @@ export default function LandingPage() {
       <div className="lp">
 
         {/* HERO */}
-        <section className="lp-hero">
-          {/* Bolas esquerda */}
-          <div className="lp-balls-left">
-            {[
-              { size: 72, bg: 'var(--golden)', letter: 'B', num: '7',  anim: 'anim-float',  dur: '6.2s', delay: '0s' },
-              { size: 56, bg: 'var(--purple)', letter: 'N', num: '31', anim: 'anim-wobble', dur: '7.5s', delay: '.8s' },
-              { size: 80, bg: 'var(--green)',  letter: 'G', num: '52', anim: 'anim-spin',   dur: '8.1s', delay: '.3s' },
-              { size: 52, bg: 'var(--orange)', letter: 'O', num: '68', anim: 'anim-float',  dur: '5.8s', delay: '1.2s' },
-              { size: 64, bg: 'var(--blue)',   letter: 'I', num: '19', anim: 'anim-wobble', dur: '9s',   delay: '.5s' },
-            ].map((b, i) => (
-              <div key={i} className={`lp-bball ${b.anim}`} style={{
-                width: b.size, height: b.size,
-                background: `radial-gradient(circle at 38% 36%, rgba(255,255,255,.5) 0%, transparent 45%), ${b.bg}`,
-                animationDuration: b.dur, animationDelay: b.delay,
-              }}>
-                <span className="bl">{b.letter}</span>
-                <span className="bn">{b.num}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Bolas direita */}
-          <div className="lp-balls-right">
-            {[
-              { size: 60, bg: 'var(--red)',    letter: 'O', num: '75', anim: 'anim-wobble', dur: '7s',   delay: '.4s' },
-              { size: 80, bg: 'var(--golden)', letter: 'B', num: '14', anim: 'anim-spin',   dur: '6.5s', delay: '1s' },
-              { size: 52, bg: 'var(--purple)', letter: 'I', num: '22', anim: 'anim-float',  dur: '8.4s', delay: '.2s' },
-              { size: 70, bg: 'var(--orange)', letter: 'N', num: '40', anim: 'anim-wobble', dur: '5.5s', delay: '1.6s' },
-              { size: 56, bg: 'var(--green)',  letter: 'G', num: '59', anim: 'anim-spin',   dur: '7.8s', delay: '.7s' },
-            ].map((b, i) => (
-              <div key={i} className={`lp-bball ${b.anim}`} style={{
-                width: b.size, height: b.size,
-                background: `radial-gradient(circle at 38% 36%, rgba(255,255,255,.5) 0%, transparent 45%), ${b.bg}`,
-                animationDuration: b.dur, animationDelay: b.delay,
-              }}>
-                <span className="bl">{b.letter}</span>
-                <span className="bn">{b.num}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* ── HERO BANNER ── */}
-          <div className="lp-hero-banner">
-            {/* Logos topo */}
-            <div className="lp-logos-row">
-              <div className="lp-logo-box">
-                <Image src="/semfronteiraslogo.png" alt="Fraternidade Sem Fronteiras" width={110} height={80} style={{ height: 80, width: 'auto' }} />
-              </div>
-              <div className="lp-logo-box">
-                <Image src="/logo-ubuntu-africa.png" alt="Nação Ubuntu" width={110} height={80} style={{ height: 80, width: 'auto' }} />
-              </div>
-            </div>
-
-            {/* Tag */}
-            <p className="lp-hero-tag">{cfg.heroEventLabel}</p>
-
-            {/* Título 3D */}
-            <div className="lp-banner-center" style={{ gap: 0 }}>
-              <h1 className="lp-bingo-3d">BINGO</h1>
-              <p className="lp-solidario-3d">SOLIDÁRIO</p>
-            </div>
-
-            {/* Layout 3 colunas: pilares esq · badge central · info dir */}
-            <div className="lp-banner-layout">
-              {/* Coluna esquerda: pilares de impacto */}
-              <div className="lp-pillars-left">
-                <div className="lp-impact-pill medicamentos">
-                  <span className="lp-pill-icon">💊</span>
-                  <span>Medicamentos</span>
-                </div>
-                <div className="lp-impact-pill acolhimento">
-                  <span className="lp-pill-icon">🤝</span>
-                  <span>Acolhimento</span>
-                </div>
-                <div className="lp-impact-pill saude">
-                  <span className="lp-pill-icon">🩺</span>
-                  <span>Saúde</span>
-                </div>
-              </div>
-
-              {/* Centro: badge giratório */}
-              <div className="lp-banner-center">
-                <div className="lp-badge-ring">
-                  <div className="lp-badge-inner">
-                    <span className="lp-badge-b">BINGO</span>
-                    <div className="lp-badge-balls">
-                      {[
-                        { bg: '#D93030', n: '7'  },
-                        { bg: '#2070D8', n: '21' },
-                        { bg: '#E87020', n: '45' },
-                        { bg: '#1E8B3A', n: '63' },
-                      ].map(b => (
-                        <div key={b.n} className="lp-badge-ball" style={{ background: b.bg }}>
-                          {b.n}
-                        </div>
-                      ))}
-                    </div>
-                    <span className="lp-badge-subtitle">sem fronteiras</span>
-                  </div>
-                </div>
-                <p className="lp-hero-subtitle" style={{ fontSize: 14, marginTop: 10, textAlign: 'center', maxWidth: 280 }}>
-                  {cfg.heroSubtitle}
-                </p>
-              </div>
-
-              {/* Coluna direita: badges + caixa CTA */}
-              <div className="lp-banner-right">
-                <div className="lp-pillars-right-col" style={{ flexDirection: 'column', gap: 10 }}>
-                  <div className="lp-impact-pill esperanca">
-                    <span className="lp-pill-icon">✨</span>
-                    <span>Esperança</span>
-                  </div>
-                  <div className="lp-impact-pill educacao">
-                    <span className="lp-pill-icon">📚</span>
-                    <span>Educação</span>
-                  </div>
-                </div>
-                <div className="lp-info-box">
-                  <p className="lp-info-box-title">SUA PARTICIPAÇÃO<br />PODE TRANSFORMAR VIDAS!</p>
-                  <p className="lp-info-box-text">
-                    <strong>{cfg.eventDate} {cfg.eventMonth}</strong><br />
-                    {cfg.eventTime}<br />
-                    {cfg.eventLocation}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+        <section className="lp-hero-img">
+          <Image
+            src="/ws_bingo.png"
+            alt="Bingo Solidário — Caravana da Saúde 2026"
+            width={1920}
+            height={900}
+            priority
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
         </section>
 
         {/* MISSION */}
