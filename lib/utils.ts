@@ -7,12 +7,23 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 export function generateCardNumbers(): number[] {
-  const pool = Array.from({ length: 75 }, (_, i) => i + 1)
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  const shuffle = (arr: number[]): number[] => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+    return arr
   }
-  return pool.slice(0, 25)
+  const ranges: [number, number][] = [[1, 15], [16, 30], [31, 45], [46, 60], [61, 75]]
+  const cols = ranges.map(([min, max]) =>
+    shuffle(Array.from({ length: max - min + 1 }, (_, i) => i + min)).slice(0, 5)
+  )
+  // Interleave em ordem coluna-maior: [B0,I0,N0,G0,O0, B1,I1,N1,G1,O1, ...]
+  const result: number[] = []
+  for (let row = 0; row < 5; row++)
+    for (let col = 0; col < 5; col++)
+      result.push(cols[col][row])
+  return result
 }
 
 export function checkWinCondition(

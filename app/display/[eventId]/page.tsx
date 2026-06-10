@@ -179,9 +179,32 @@ export default function DisplayPage() {
     document.documentElement.requestFullscreen?.().catch(() => {})
   }, [])
 
-  // Load sponsors on mount
+  // Load sponsors and keep in sync via realtime + periodic refresh
   useEffect(() => {
-    listSponsors().then(setSponsors).catch(console.error)
+    let cancelled = false
+
+    const load = () =>
+      listSponsors()
+        .then(data => { if (!cancelled) setSponsors(data) })
+        .catch(console.error)
+
+    load()
+
+    // Realtime: recarrega sempre que a tabela sponsors mudar
+    const supabase = createClient()
+    const channel = supabase
+      .channel('sponsors-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsors' }, load)
+      .subscribe()
+
+    // Periodic refresh every 30s como fallback
+    const timer = setInterval(load, 30_000)
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+      clearInterval(timer)
+    }
   }, [])
 
   // Rebuild playlist when sponsors change or cycle resets
@@ -398,10 +421,10 @@ export default function DisplayPage() {
     `}</style>
     <div className="min-h-screen brand-bg flex flex-col select-none overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-white/10">
+      <div className="flex items-center justify-between px-6 py-2 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">🎰</span>
-          <span className="font-display text-white text-2xl tracking-widest">{event.name}</span>
+          <span className="text-2xl">🎰</span>
+          <span className="font-display text-white text-xl tracking-widest">{event.name}</span>
         </div>
         <div className="flex items-center gap-4">
           {cfg.ttsEnabled && (
@@ -425,14 +448,14 @@ export default function DisplayPage() {
       </div>
 
       {/* Corpo principal */}
-      <div className="flex-1 flex gap-6 p-8">
+      <div className="flex-1 flex gap-3 p-3 min-h-0">
         {/* Coluna esquerda: número atual */}
-        <div className="flex flex-col items-center justify-center w-80 flex-shrink-0">
-          <p className="text-white/40 text-sm uppercase tracking-widest mb-6 font-medium">Número Atual</p>
+        <div className="flex flex-col items-center justify-center w-44 flex-shrink-0">
+          <p className="text-white/40 text-xs uppercase tracking-widest mb-3 font-medium">Número Atual</p>
           {currentNumber ? (
             <div
               key={animKey}
-              className={`ball w-52 h-52 flex items-center justify-center font-display text-8xl animate-ball-pop ${
+              className={`ball w-36 h-36 flex items-center justify-center font-display text-6xl animate-ball-pop ${
                 tensionLevel === 'climax'   ? 'ball-red'    :
                 tensionLevel === 'dramatic' ? 'ball-orange' :
                 tensionLevel === 'alert'    ? 'ball-purple' :
@@ -443,19 +466,19 @@ export default function DisplayPage() {
               {idleDisplayNum ?? currentNumber}
             </div>
           ) : (
-            <div className="ball ball-gray w-52 h-52 flex items-center justify-center font-display text-6xl text-gray-400">
+            <div className="ball ball-gray w-36 h-36 flex items-center justify-center font-display text-5xl text-gray-400">
               —
             </div>
           )}
 
           {/* Últimos 4 */}
-          <div className="mt-8 w-full">
-            <p className="text-white/30 text-xs uppercase tracking-widest mb-3 text-center">Anteriores</p>
-            <div className="flex justify-center gap-2">
+          <div className="mt-4 w-full">
+            <p className="text-white/30 text-xs uppercase tracking-widest mb-2 text-center">Anteriores</p>
+            <div className="flex justify-center gap-1.5">
               {last5.slice(1).map((n, i) => (
                 <div
                   key={n}
-                  className="ball ball-purple w-12 h-12 flex items-center justify-center font-display text-xl"
+                  className="ball ball-purple w-10 h-10 flex items-center justify-center font-display text-lg"
                   style={{ opacity: 1 - i * 0.2 }}
                 >
                   {n}
@@ -466,25 +489,28 @@ export default function DisplayPage() {
         </div>
 
         {/* Grade 1-75 */}
-        <div className="flex-1 flex flex-col">
-          <p className="text-white/40 text-sm uppercase tracking-widest mb-4 font-medium">Todos os Números</p>
-          <div className="grid grid-cols-[repeat(15,1fr)] gap-1.5 flex-1 content-start">
+        <div className="flex-1 flex flex-col min-h-0">
+          <p className="text-white/40 text-xs uppercase tracking-widest mb-1.5 font-medium">Todos os Números</p>
+          <div
+            className="grid grid-cols-[repeat(15,1fr)] gap-1 flex-1"
+            style={{ gridAutoRows: '1fr' }}
+          >
             {Array.from({ length: 75 }, (_, i) => i + 1).map(n => {
               const isDrawn = event.drawn_numbers.includes(n)
               const isCurrent = n === currentNumber
               return (
                 <div
                   key={n}
-                  className={`aspect-square flex items-center justify-center rounded-lg font-display text-sm transition-all ${
+                  className={`flex items-center justify-center rounded-lg font-display text-2xl font-bold transition-all ${
                     isCurrent
-                      ? `ball font-bold animate-ball-pop ${
+                      ? `ball animate-ball-pop ${
                           tensionLevel === 'climax'   ? 'ball-red text-white'    :
                           tensionLevel === 'dramatic' ? 'ball-orange text-white' :
                           'ball-yellow text-[#5C1F47]'
                         }`
                       : isDrawn
-                      ? 'bg-[#fcd34d]/30 text-[#fcd34d] font-bold'
-                      : 'bg-white/5 text-white/20'
+                      ? 'bg-[#fcd34d] text-[#3a1230] font-black'
+                      : 'bg-white/[0.07] text-white/40'
                   }`}
                 >
                   {n}
