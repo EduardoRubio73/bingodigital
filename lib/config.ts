@@ -29,6 +29,12 @@ export interface BingoConfig {
   heroSubtitle: string
   // Rodapé
   footerCopy: string
+  // Patrocinadores — durações padrão por tier (segundos)
+  sponsorSimplesDuration: number
+  sponsorDestaqueDuration: number
+  sponsorPersonalizadoDuration: number
+  sponsorSimplesAppearances: number
+  sponsorDestaqueAppearances: number
 }
 
 export const DEFAULT_CONFIG: BingoConfig = {
@@ -55,6 +61,11 @@ export const DEFAULT_CONFIG: BingoConfig = {
   heroEventLabel: 'Caravana da Saúde 2026 · Malawi',
   heroSubtitle: 'Participe e ajude a levar medicamentos, saúde e acolhimento para crianças e adultos em situação de vulnerabilidade no Malawi.',
   footerCopy: '© 2026 · Caravana da Saúde · Malawi · Todos os direitos reservados',
+  sponsorSimplesDuration: 10,
+  sponsorDestaqueDuration: 15,
+  sponsorPersonalizadoDuration: 20,
+  sponsorSimplesAppearances: 3,
+  sponsorDestaqueAppearances: 5,
 }
 
 const CONFIG_KEY = 'bingo_config'
