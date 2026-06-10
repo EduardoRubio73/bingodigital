@@ -137,11 +137,15 @@ export default function ConfiguracoesPage() {
       setSponsorForm(DEFAULT_SPONSOR_FORM)
       toast.success(editingId ? 'Patrocinador atualizado!' : 'Patrocinador salvo!')
     } catch (e) {
-      console.error(e)
-      const msg = e instanceof Error ? e.message : 'Erro ao salvar patrocinador'
-      toast.error(msg.includes('does not exist')
-        ? 'Tabela sponsors não encontrada — execute a migration SQL no Supabase Dashboard'
-        : msg)
+      console.error('[Sponsor Save]', e)
+      // Supabase throws PostgrestError (not instanceof Error) — extract .message safely
+      const msg = (e as { message?: string })?.message ?? String(e)
+      toast.error(
+        msg.includes('does not exist') || msg.includes('relation')
+          ? 'Tabela sponsors não existe — execute a migration no Supabase Dashboard'
+          : msg,
+        { duration: 8000 }
+      )
     }
     finally { setSavingSponsor(false) }
   }, [sponsorForm, editingId])
@@ -154,8 +158,8 @@ export default function ConfiguracoesPage() {
       setSponsors(prev => prev.filter(s => s.id !== id))
       toast.success('Patrocinador removido.')
     } catch (e) {
-      console.error(e)
-      toast.error(e instanceof Error ? e.message : 'Erro ao remover patrocinador')
+      console.error('[Sponsor Delete]', e)
+      toast.error((e as { message?: string })?.message ?? 'Erro ao remover patrocinador', { duration: 8000 })
     }
     finally { setDeletingId(null) }
   }, [])
