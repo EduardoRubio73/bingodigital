@@ -1,7 +1,20 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import { loadConfig, DEFAULT_CONFIG, type BingoConfig } from '@/lib/config'
 
 export default function LandingPage() {
+  const [cfg, setCfg] = useState<BingoConfig>(DEFAULT_CONFIG)
+  useEffect(() => { setCfg(loadConfig()) }, [])
+
+  const whatsappBase = `https://wa.me/${cfg.whatsappNumber}`
+  const whatsappMsg = encodeURIComponent(
+    `Olá ${cfg.whatsappName}! Quero adquirir meu convite para o Bingo Solidário da Caravana da Saúde ${cfg.eventYear}!`
+  )
+  const whatsappHref = `${whatsappBase}?text=${whatsappMsg}`
+
   return (
     <>
       <style>{`
@@ -124,13 +137,24 @@ export default function LandingPage() {
         .anim-spin   { animation: lpSpinBall   ease-in-out infinite; }
         .anim-wobble { animation: lpWobbleBall ease-in-out infinite; }
 
-        /* HERO CONTENT */
+        /* ── HERO BANNER (nova) ── */
+        .lp-hero-banner {
+          position: relative;
+          z-index: 2;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          width: 100%;
+          max-width: 820px;
+        }
+
+        /* Logos */
         .lp-logos-row {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 40px;
-          margin-bottom: 32px;
+          gap: 28px;
+          margin-bottom: 18px;
           flex-wrap: wrap;
           position: relative;
           z-index: 2;
@@ -138,34 +162,216 @@ export default function LandingPage() {
         .lp-logo-box {
           background: rgba(255,255,255,.95);
           border-radius: 20px;
-          padding: 14px 18px;
+          padding: 12px 16px;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 8px 32px rgba(0,0,0,.35);
+          box-shadow: 0 8px 32px rgba(0,0,0,.4);
         }
         .lp-hero-tag {
           font-weight: 800;
-          font-size: 13px;
-          letter-spacing: 4px;
+          font-size: 12px;
+          letter-spacing: 5px;
           text-transform: uppercase;
           color: var(--golden);
-          margin-bottom: 12px;
+          margin-bottom: 10px;
           position: relative;
           z-index: 2;
+          opacity: .85;
         }
-        .lp-hero-title {
+
+        /* Título 3D */
+        .lp-bingo-3d {
           font-family: 'Bebas Neue', sans-serif;
-          font-size: clamp(80px, 16vw, 160px);
-          color: #fff;
-          line-height: .9;
-          text-align: center;
+          font-size: clamp(100px, 20vw, 190px);
+          line-height: .82;
+          letter-spacing: 6px;
+          color: #FFD14A;
+          text-shadow:
+            0 2px 0 #E8A020,
+            0 4px 0 #C87010,
+            0 6px 0 #A85808,
+            0 8px 0 #883000,
+            0 12px 16px rgba(0,0,0,.65),
+            0  0 50px rgba(255,180,0,.55),
+            0  0 100px rgba(255,100,0,.25);
           position: relative;
           z-index: 2;
-          text-shadow: 0 0 80px rgba(232,160,32,.5), 0 6px 24px rgba(0,0,0,.5);
-          letter-spacing: 6px;
         }
-        .lp-hero-title span { color: var(--golden); display: block; }
+        .lp-solidario-3d {
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: clamp(62px, 13vw, 122px);
+          line-height: .9;
+          letter-spacing: 8px;
+          color: #fff;
+          -webkit-text-stroke: 1.5px rgba(255,200,60,.35);
+          text-shadow:
+            0 2px 0 rgba(0,0,0,.35),
+            0 5px 10px rgba(0,0,0,.55),
+            0  0 30px rgba(255,200,60,.2);
+          position: relative;
+          z-index: 2;
+          margin-top: -4px;
+        }
+
+        /* Layout interno do hero */
+        .lp-banner-layout {
+          display: grid;
+          grid-template-columns: 120px 1fr 200px;
+          gap: 20px;
+          align-items: center;
+          width: 100%;
+          margin-top: 6px;
+        }
+
+        /* Pilares impacto */
+        .lp-pillars-left, .lp-pillars-right-col {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+          z-index: 2;
+        }
+        .lp-impact-pill {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          width: 88px; height: 88px;
+          border-radius: 50%;
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: 10.5px;
+          letter-spacing: 1.2px;
+          text-transform: uppercase;
+          color: #fff;
+          box-shadow:
+            0 4px 20px rgba(0,0,0,.45),
+            inset 0 1px 0 rgba(255,255,255,.25),
+            inset 0 -3px 0 rgba(0,0,0,.2);
+        }
+        .lp-impact-pill .lp-pill-icon { font-size: 24px; line-height: 1; }
+        .lp-impact-pill.medicamentos { background: radial-gradient(circle at 38% 32%, rgba(255,255,255,.3) 0%, transparent 50%), #8B2FC9; }
+        .lp-impact-pill.acolhimento  { background: radial-gradient(circle at 38% 32%, rgba(255,255,255,.3) 0%, transparent 50%), #E87020; }
+        .lp-impact-pill.saude        { background: radial-gradient(circle at 38% 32%, rgba(255,255,255,.3) 0%, transparent 50%), #1E8B3A; }
+        .lp-impact-pill.esperanca    { background: radial-gradient(circle at 38% 32%, rgba(255,255,255,.3) 0%, transparent 50%), #D93030; }
+        .lp-impact-pill.educacao     { background: radial-gradient(circle at 38% 32%, rgba(255,255,255,.3) 0%, transparent 50%), #2070D8; }
+
+        /* Centro do banner */
+        .lp-banner-center {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0;
+          z-index: 2;
+        }
+
+        /* Badge circular "Bingo Sem Fronteiras" */
+        .lp-badge-ring {
+          position: relative;
+          width: 130px; height: 130px;
+          margin: 10px 0 4px;
+        }
+        .lp-badge-ring::before {
+          content: '';
+          position: absolute;
+          inset: -4px;
+          border-radius: 50%;
+          background: conic-gradient(#FFD700, #FF6B00, #FFD700, #FF6B00, #FFD700);
+          animation: lpSpinBall 8s linear infinite;
+        }
+        .lp-badge-inner {
+          position: absolute;
+          inset: 6px;
+          border-radius: 50%;
+          background: radial-gradient(circle at 40% 35%, #3a1050 0%, #1a0530 100%);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 2px;
+          z-index: 1;
+          overflow: hidden;
+        }
+        .lp-badge-inner::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 40% 30%, rgba(255,255,255,.12) 0%, transparent 60%);
+          border-radius: 50%;
+        }
+        .lp-badge-b {
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: 28px;
+          color: #FFD700;
+          letter-spacing: 2px;
+          text-shadow: 0 0 12px rgba(255,180,0,.7);
+          z-index: 1;
+          line-height: 1;
+        }
+        .lp-badge-balls {
+          display: flex;
+          gap: 3px;
+          z-index: 1;
+        }
+        .lp-badge-ball {
+          width: 14px; height: 14px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: 8px;
+          color: #fff;
+          font-weight: 900;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.4);
+        }
+        .lp-badge-subtitle {
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: 8px;
+          letter-spacing: 2px;
+          color: rgba(255,255,255,.6);
+          text-transform: uppercase;
+          z-index: 1;
+        }
+
+        /* Coluna direita */
+        .lp-banner-right {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          z-index: 2;
+        }
+        .lp-info-box {
+          background: rgba(232,160,32,.12);
+          border: 1.5px solid rgba(232,160,32,.4);
+          border-radius: 14px;
+          padding: 14px 16px;
+        }
+        .lp-info-box-title {
+          font-family: 'Bebas Neue', sans-serif;
+          font-size: 13px;
+          letter-spacing: 1.5px;
+          color: var(--golden);
+          line-height: 1.2;
+          margin-bottom: 6px;
+        }
+        .lp-info-box-text {
+          font-size: 12px;
+          color: rgba(255,255,255,.75);
+          line-height: 1.55;
+          font-weight: 600;
+        }
+        .lp-info-box-text strong { color: var(--golden); }
+
+        /* Responsivo banner */
+        @media (max-width: 860px) {
+          .lp-banner-layout { grid-template-columns: 1fr; }
+          .lp-pillars-left, .lp-pillars-right-col { flex-direction: row; justify-content: center; }
+          .lp-banner-right { align-items: center; }
+          .lp-info-box { max-width: 340px; }
+        }
+
         .lp-hero-subtitle {
           font-size: clamp(15px, 2.5vw, 20px);
           color: rgba(255,255,255,.88);
@@ -674,26 +880,93 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Logos */}
-          <div className="lp-logos-row">
-            <div className="lp-logo-box">
-              <Image src="/semfronteiraslogo.png" alt="Fraternidade Sem Fronteiras" width={120} height={90} style={{ height: 90, width: 'auto' }} />
+          {/* ── HERO BANNER ── */}
+          <div className="lp-hero-banner">
+            {/* Logos topo */}
+            <div className="lp-logos-row">
+              <div className="lp-logo-box">
+                <Image src="/semfronteiraslogo.png" alt="Fraternidade Sem Fronteiras" width={110} height={80} style={{ height: 80, width: 'auto' }} />
+              </div>
+              <div className="lp-logo-box">
+                <Image src="/logo-ubuntu-africa.png" alt="Nação Ubuntu" width={110} height={80} style={{ height: 80, width: 'auto' }} />
+              </div>
             </div>
-            <div className="lp-logo-box">
-              <Image src="/logo-ubuntu-africa.png" alt="Nação Ubuntu" width={120} height={90} style={{ height: 90, width: 'auto' }} />
+
+            {/* Tag */}
+            <p className="lp-hero-tag">{cfg.heroEventLabel}</p>
+
+            {/* Título 3D */}
+            <div className="lp-banner-center" style={{ gap: 0 }}>
+              <h1 className="lp-bingo-3d">BINGO</h1>
+              <p className="lp-solidario-3d">SOLIDÁRIO</p>
+            </div>
+
+            {/* Layout 3 colunas: pilares esq · badge central · info dir */}
+            <div className="lp-banner-layout">
+              {/* Coluna esquerda: pilares de impacto */}
+              <div className="lp-pillars-left">
+                <div className="lp-impact-pill medicamentos">
+                  <span className="lp-pill-icon">💊</span>
+                  <span>Medicamentos</span>
+                </div>
+                <div className="lp-impact-pill acolhimento">
+                  <span className="lp-pill-icon">🤝</span>
+                  <span>Acolhimento</span>
+                </div>
+                <div className="lp-impact-pill saude">
+                  <span className="lp-pill-icon">🩺</span>
+                  <span>Saúde</span>
+                </div>
+              </div>
+
+              {/* Centro: badge giratório */}
+              <div className="lp-banner-center">
+                <div className="lp-badge-ring">
+                  <div className="lp-badge-inner">
+                    <span className="lp-badge-b">BINGO</span>
+                    <div className="lp-badge-balls">
+                      {[
+                        { bg: '#D93030', n: '7'  },
+                        { bg: '#2070D8', n: '21' },
+                        { bg: '#E87020', n: '45' },
+                        { bg: '#1E8B3A', n: '63' },
+                      ].map(b => (
+                        <div key={b.n} className="lp-badge-ball" style={{ background: b.bg }}>
+                          {b.n}
+                        </div>
+                      ))}
+                    </div>
+                    <span className="lp-badge-subtitle">sem fronteiras</span>
+                  </div>
+                </div>
+                <p className="lp-hero-subtitle" style={{ fontSize: 14, marginTop: 10, textAlign: 'center', maxWidth: 280 }}>
+                  {cfg.heroSubtitle}
+                </p>
+              </div>
+
+              {/* Coluna direita: badges + caixa CTA */}
+              <div className="lp-banner-right">
+                <div className="lp-pillars-right-col" style={{ flexDirection: 'column', gap: 10 }}>
+                  <div className="lp-impact-pill esperanca">
+                    <span className="lp-pill-icon">✨</span>
+                    <span>Esperança</span>
+                  </div>
+                  <div className="lp-impact-pill educacao">
+                    <span className="lp-pill-icon">📚</span>
+                    <span>Educação</span>
+                  </div>
+                </div>
+                <div className="lp-info-box">
+                  <p className="lp-info-box-title">SUA PARTICIPAÇÃO<br />PODE TRANSFORMAR VIDAS!</p>
+                  <p className="lp-info-box-text">
+                    <strong>{cfg.eventDate} {cfg.eventMonth}</strong><br />
+                    {cfg.eventTime}<br />
+                    {cfg.eventLocation}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
-
-          <p className="lp-hero-tag">Caravana da Saúde 2026 · Malawi</p>
-
-          <h1 className="lp-hero-title">
-            BINGO
-            <span>Solidário</span>
-          </h1>
-
-          <p className="lp-hero-subtitle" style={{ fontSize: 22 }}>
-            Participe e ajude a levar medicamentos, saúde e acolhimento para crianças e adultos em situação de vulnerabilidade no Malawi.
-          </p>
         </section>
 
         {/* MISSION */}
@@ -749,10 +1022,10 @@ export default function LandingPage() {
           </div>
           <div className="lp-steps">
             {[
-              { n: '1', text: <>Adquira seu convite por <strong style={{ color: 'var(--golden)' }}>R$ 150,00</strong> — inclui 10 cartelas</> },
-              { n: '2', text: <>Receba suas <strong style={{ color: 'var(--golden)' }}>10 cartelas</strong> exclusivas de Bingo</> },
-              { n: '3', text: <>Compareça ao evento em <strong style={{ color: 'var(--golden)' }}>20 de Agosto</strong> ou assista ao vivo pelo YouTube</> },
-              { n: '4', text: <>Concorra a prêmios e <strong style={{ color: 'var(--golden)' }}>transforme vidas</strong> no Malawi</> },
+              { n: '1', text: <>Adquira seu convite por <strong style={{ color: 'var(--golden)' }}>R$ {cfg.ticketPrice},00</strong> — inclui {cfg.cardsPerTicket} cartelas</> },
+              { n: '2', text: <>Receba suas <strong style={{ color: 'var(--golden)' }}>{cfg.cardsPerTicket} cartelas</strong> exclusivas de Bingo</> },
+              { n: '3', text: <>Compareça ao evento em <strong style={{ color: 'var(--golden)' }}>{cfg.eventDate} {cfg.eventMonth}</strong> ou assista ao vivo pelo YouTube</> },
+              { n: '4', text: <>Concorra a prêmios e <strong style={{ color: 'var(--golden)' }}>transforme vidas</strong></> },
             ].map(s => (
               <div key={s.n} className="lp-step">
                 <div className="lp-step-num">{s.n}</div>
@@ -768,17 +1041,17 @@ export default function LandingPage() {
             <div className="lp-event-grid">
               <div className="lp-event-date-block">
                 <div>
-                  <div className="lp-date-big">20</div>
-                  <div className="lp-date-month">de Agosto</div>
-                  <div className="lp-date-year">2026</div>
+                  <div className="lp-date-big">{cfg.eventDate}</div>
+                  <div className="lp-date-month">{cfg.eventMonth}</div>
+                  <div className="lp-date-year">{cfg.eventYear}</div>
                 </div>
                 <div className="lp-event-row">
                   <div className="lp-event-icon">🕖</div>
-                  <div className="lp-event-row-text"><strong>Horário</strong>Das 19h às 23h</div>
+                  <div className="lp-event-row-text"><strong>Horário</strong>{cfg.eventTime}</div>
                 </div>
                 <div className="lp-event-row">
                   <div className="lp-event-icon">📍</div>
-                  <div className="lp-event-row-text"><strong>Local</strong>Salão de Eventos do<br />Condomínio Izaura — Presencial</div>
+                  <div className="lp-event-row-text"><strong>Local</strong>{cfg.eventLocation}<br />{cfg.eventLocationDetail}</div>
                 </div>
               </div>
 
@@ -799,10 +1072,10 @@ export default function LandingPage() {
                   <div className="lp-event-card-icon">📱</div>
                   <div className="lp-event-card-text">
                     <h4>Comprar pelo WhatsApp</h4>
-                    <p>Fale com a Izabel e garanta seu convite agora:<br />
-                    <a href="https://wa.me/5515996016655" target="_blank" rel="noopener noreferrer"><strong>(15) 99601-6655</strong></a></p>
-                    <a href="https://wa.me/5515996016655?text=Ol%C3%A1%20Izabel!%20Quero%20adquirir%20meu%20convite%20para%20o%20Bingo%20Solid%C3%A1rio%20da%20Caravana%20da%20Sa%C3%BAde%202026!" target="_blank" rel="noopener noreferrer" className="lp-whats-btn" style={{ marginTop: 12 }}>
-                      💬 Falar com Izabel
+                    <p>Fale com {cfg.whatsappName} e garanta seu convite agora:<br />
+                    <a href={whatsappBase} target="_blank" rel="noopener noreferrer"><strong>{cfg.whatsappNumber}</strong></a></p>
+                    <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="lp-whats-btn" style={{ marginTop: 12 }}>
+                      💬 Falar com {cfg.whatsappName}
                     </a>
                   </div>
                 </div>
@@ -858,27 +1131,27 @@ export default function LandingPage() {
 
             <div className="lp-price-breakdown">
               <span className="lp-price-pill highlight">Convite Completo</span>
-              <span className="lp-price-pill">10 cartelas por R$ 150,00</span>
-              <span className="lp-price-pill">Cartela avulsa R$ 15,00</span>
+              <span className="lp-price-pill">{cfg.cardsPerTicket} cartelas por R$ {cfg.ticketPrice},00</span>
+              <span className="lp-price-pill">Cartela avulsa R$ {cfg.cardPrice},00</span>
             </div>
 
             <div style={{ margin: '4px 0 12px' }}>
-              <span className="lp-price-big"><sup>R$</sup>150<sup>,00</sup></span>
+              <span className="lp-price-big"><sup>R$</sup>{cfg.ticketPrice}<sup>,00</sup></span>
             </div>
 
-            <p className="lp-ticket-note">🎴 Cada convite inclui 10 cartelas de Bingo + participação no sorteio de prêmios</p>
+            <p className="lp-ticket-note">🎴 Cada convite inclui {cfg.cardsPerTicket} cartelas de Bingo + participação no sorteio de prêmios</p>
 
             <div className="lp-cta-group">
-              <a href="https://wa.me/5515996016655?text=Ol%C3%A1%20Izabel!%20Quero%20adquirir%20meu%20convite%20para%20o%20Bingo%20Solid%C3%A1rio%20da%20Caravana%20da%20Sa%C3%BAde%202026!" target="_blank" rel="noopener noreferrer" className="lp-btn-primary">
+              <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="lp-btn-primary">
                 💬 Adquirir pelo WhatsApp
               </a>
-              <a href="https://projetomalawi.vercel.app/" target="_blank" rel="noopener noreferrer" className="lp-btn-secondary">
+              <a href={cfg.projectUrl} target="_blank" rel="noopener noreferrer" className="lp-btn-secondary">
                 Saber Mais
               </a>
             </div>
 
             <p style={{ marginTop: 20, fontSize: 13, color: '#aaa', fontWeight: 600 }}>
-              <span style={{ color: '#e222bb' }}>Fale com Izabel · (15) 99601-6655</span>
+              <span style={{ color: '#e222bb' }}>Fale com {cfg.whatsappName} · {cfg.whatsappNumber}</span>
             </p>
           </div>
         </section>
@@ -969,8 +1242,8 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="lp-footer-divider" />
-          <p className="lp-footer-text">Uma iniciativa solidária da <strong style={{ color: '#fff' }}>Fraternidade Sem Fronteiras</strong> e <strong style={{ color: '#fff' }}>Nação Ubuntu</strong> em prol da Caravana da Saúde 2026 no Malawi.</p>
-          <a href="https://projetomalawi.vercel.app/" target="_blank" rel="noopener noreferrer" className="lp-footer-link">projetomalawi.vercel.app →</a>
+          <p className="lp-footer-text">Uma iniciativa solidária da <strong style={{ color: '#fff' }}>{cfg.orgName1}</strong> e <strong style={{ color: '#fff' }}>{cfg.orgName2}</strong> em prol da Caravana da Saúde {cfg.eventYear}.</p>
+          <a href={cfg.projectUrl} target="_blank" rel="noopener noreferrer" className="lp-footer-link">{cfg.projectUrl.replace('https://', '')} →</a>
 
           {/* Acesso organizadores */}
           <div style={{ marginTop: 28 }}>
@@ -979,7 +1252,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <p className="lp-footer-copy">© 2026 · Caravana da Saúde · Malawi · Todos os direitos reservados</p>
+          <p className="lp-footer-copy">{cfg.footerCopy}</p>
         </footer>
 
       </div>

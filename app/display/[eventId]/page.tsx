@@ -1,31 +1,54 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useEvent } from '@/hooks/useEvent'
+import { speakNumber } from '@/lib/tts'
+import { loadConfig } from '@/lib/config'
 
 export default function DisplayPage() {
   const { eventId } = useParams<{ eventId: string }>()
   const { event, loading } = useEvent(eventId)
   const [currentNumber, setCurrentNumber] = useState<number | null>(null)
   const [animKey, setAnimKey] = useState(0)
+  const [ttsStatus, setTtsStatus] = useState<'idle' | 'speaking' | 'error'>('idle')
   const prevLengthRef = useRef(0)
+  const speakingRef = useRef(false)
 
-  // Detecta novo número e dispara animação
+  const triggerSpeak = useCallback(async (num: number) => {
+    const cfg = loadConfig()
+    if (!cfg.ttsEnabled || !cfg.geminiApiKey) return
+    if (speakingRef.current) return
+    speakingRef.current = true
+    setTtsStatus('speaking')
+    try {
+      await speakNumber(num, cfg.geminiApiKey, cfg.voiceName, cfg.ttsPrefix)
+      setTtsStatus('idle')
+    } catch (err) {
+      console.error('[TTS]', err)
+      setTtsStatus('error')
+      setTimeout(() => setTtsStatus('idle'), 3000)
+    } finally {
+      speakingRef.current = false
+    }
+  }, [])
+
   useEffect(() => {
     if (!event?.drawn_numbers?.length) return
     if (event.drawn_numbers.length > prevLengthRef.current) {
       const latest = event.drawn_numbers[event.drawn_numbers.length - 1]
       setCurrentNumber(latest)
       setAnimKey(k => k + 1)
+      triggerSpeak(latest)
     }
     prevLengthRef.current = event.drawn_numbers.length
-  }, [event?.drawn_numbers])
+  }, [event?.drawn_numbers, triggerSpeak])
 
-  // Fullscreen ao montar
   useEffect(() => {
     document.documentElement.requestFullscreen?.().catch(() => {})
   }, [])
+
+  const cfg = loadConfig()
 
   if (loading || !event) {
     return (
@@ -45,8 +68,23 @@ export default function DisplayPage() {
           <span className="text-3xl">🎰</span>
           <span className="font-display text-white text-2xl tracking-widest">{event.name}</span>
         </div>
-        <div className="text-white/40 font-display text-xl">
-          {event.drawn_numbers.length} / 75
+        <div className="flex items-center gap-4">
+          {/* TTS status indicator */}
+          {cfg.ttsEnabled && (
+            <div className={`flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border transition-all ${
+              ttsStatus === 'speaking'
+                ? 'text-yellow-300 bg-yellow-400/10 border-yellow-400/30 animate-pulse'
+                : ttsStatus === 'error'
+                ? 'text-red-400 bg-red-400/10 border-red-400/30'
+                : 'text-white/30 bg-white/5 border-white/10'
+            }`}>
+              <span>{ttsStatus === 'speaking' ? '🔊' : ttsStatus === 'error' ? '⚠️' : '🔈'}</span>
+              <span>{ttsStatus === 'speaking' ? 'Anunciando...' : ttsStatus === 'error' ? 'Erro de voz' : 'Voz ativa'}</span>
+            </div>
+          )}
+          <div className="text-white/40 font-display text-xl">
+            {event.drawn_numbers.length} / 75
+          </div>
         </div>
       </div>
 
@@ -68,7 +106,7 @@ export default function DisplayPage() {
             </div>
           )}
 
-          {/* Últimos 5 */}
+          {/* Últimos 4 */}
           <div className="mt-8 w-full">
             <p className="text-white/30 text-xs uppercase tracking-widest mb-3 text-center">Anteriores</p>
             <div className="flex justify-center gap-2">
@@ -113,9 +151,11 @@ export default function DisplayPage() {
 
       {/* Footer */}
       <div className="px-8 py-3 border-t border-white/10 flex items-center justify-between">
-        <p className="text-white/30 text-xs">Fraternidade Sem Fronteiras</p>
+        <p className="text-white/30 text-xs">{cfg.orgName1}</p>
         <p className="text-white/30 text-xs capitalize">
-          Condição: {event.win_condition.replace('_', ' ')}
+          {event.prize_conditions?.length
+            ? `${event.prize_conditions.filter(p => p.won_at).length}/${event.prize_conditions.length} prêmios entregues`
+            : `Condição: ${event.win_condition?.replace('_', ' ')}`}
         </p>
         {event.status === 'finished' && (
           <div className="absolute inset-0 brand-bg/95 flex items-center justify-center">
