@@ -215,6 +215,7 @@ export default function DisplayPage() {
   return (
     <>
     <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
       @keyframes spSlideUp {
         from { opacity: 0; transform: translateY(16px); }
         to   { opacity: 1; transform: translateY(0); }
