@@ -127,7 +127,7 @@ async function playDrumRoll(ctx: AudioContext): Promise<void> {
 }
 
 // Web Speech API fallback — always available, no API key needed
-function speakWithWebSpeech(text: string): Promise<void> {
+function speakWithWebSpeech(text: string, browserVoiceName = ''): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       reject(new Error('Web Speech API indisponível'))
@@ -138,6 +138,14 @@ function speakWithWebSpeech(text: string): Promise<void> {
     utterance.lang = 'pt-BR'
     utterance.rate = 1.05
     utterance.pitch = 1.0
+    if (browserVoiceName) {
+      const voices = window.speechSynthesis.getVoices()
+      const match = voices.find(v => v.name === browserVoiceName)
+      if (match) {
+        utterance.voice = match
+        utterance.lang = match.lang
+      }
+    }
     utterance.onend = () => resolve()
     utterance.onerror = e => reject(new Error(`Web Speech: ${e.error}`))
     window.speechSynthesis.speak(utterance)
@@ -209,7 +217,8 @@ export async function speakNumber(
   apiKey: string,
   voiceName = 'Aoede',
   prefix = '',
-  tension: TensionLevel = 'normal'
+  tension: TensionLevel = 'normal',
+  browserVoiceName = ''
 ): Promise<void> {
   const text = prefix
     ? `${prefix} ${numberToPortuguese(number)}`
@@ -242,5 +251,5 @@ export async function speakNumber(
 
   // Fallback: Web Speech API
   console.warn('[TTS] Usando Web Speech API como fallback')
-  await speakWithWebSpeech(text)
+  await speakWithWebSpeech(text, browserVoiceName)
 }

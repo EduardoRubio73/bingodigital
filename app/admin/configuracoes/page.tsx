@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import {
   Volume2, VolumeX, Globe, Phone, Calendar, MapPin, DollarSign,
   Save, RotateCcw, Eye, ExternalLink, ChevronRight, CheckCircle, AlertCircle,
-  Award, Plus, Pencil, Trash2, X, Clock, Repeat,
+  Award, Plus, Pencil, Trash2, X, Clock, Repeat, Palette,
 } from 'lucide-react'
 import {
   listSponsors, upsertSponsor, deleteSponsor, getQrUrl,
@@ -25,7 +25,7 @@ const VOICES = [
   { id: 'Orus',    label: 'Orus — Masculina, profunda' },
 ]
 
-type Section = 'voz' | 'evento' | 'contatos' | 'organizacao' | 'precos' | 'textos' | 'patrocinadores'
+type Section = 'voz' | 'evento' | 'contatos' | 'organizacao' | 'precos' | 'textos' | 'patrocinadores' | 'visual'
 
 const DEFAULT_SPONSOR_FORM: SponsorInsert = {
   name: '', logo_url: '', contact_name: '', site_url: '', instagram_url: '',
@@ -53,6 +53,7 @@ export default function ConfiguracoesPage() {
   const [activeSection, setActiveSection] = useState<Section>('voz')
   const [testingVoice, setTestingVoice] = useState(false)
   const [testError, setTestError] = useState('')
+  const [browserVoices, setBrowserVoices] = useState<SpeechSynthesisVoice[]>([])
 
   // Patrocinadores state
   const [sponsors, setSponsors] = useState<Sponsor[]>([])
@@ -64,6 +65,16 @@ export default function ConfiguracoesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => { setCfg(loadConfig()) }, [])
+
+  useEffect(() => {
+    const load = () => {
+      const voices = window.speechSynthesis?.getVoices() ?? []
+      if (voices.length > 0) setBrowserVoices(voices)
+    }
+    load()
+    window.speechSynthesis?.addEventListener('voiceschanged', load)
+    return () => { window.speechSynthesis?.removeEventListener('voiceschanged', load) }
+  }, [])
 
   const update = useCallback(<K extends keyof BingoConfig>(key: K, value: BingoConfig[K]) => {
     setCfg(prev => ({ ...prev, [key]: value }))
@@ -85,17 +96,16 @@ export default function ConfiguracoesPage() {
   }, [])
 
   const testVoice = useCallback(async () => {
-    if (!cfg.geminiApiKey) { setTestError('Insira a chave da API Gemini primeiro'); return }
     setTestingVoice(true)
     setTestError('')
     try {
-      await speakNumber(42, cfg.geminiApiKey, cfg.voiceName, cfg.ttsPrefix)
+      await speakNumber(42, cfg.geminiApiKey, cfg.voiceName, cfg.ttsPrefix, 'normal', cfg.browserVoiceName)
     } catch (e: unknown) {
       setTestError(e instanceof Error ? e.message : 'Erro ao testar voz')
     } finally {
       setTestingVoice(false)
     }
-  }, [cfg.geminiApiKey, cfg.voiceName, cfg.ttsPrefix])
+  }, [cfg.geminiApiKey, cfg.voiceName, cfg.ttsPrefix, cfg.browserVoiceName])
 
   // Load sponsors when section becomes active
   useEffect(() => {
@@ -171,7 +181,8 @@ export default function ConfiguracoesPage() {
     { id: 'organizacao', label: 'Organização',        icon: <Globe size={16} />,      desc: 'Nomes e URLs' },
     { id: 'precos',      label: 'Preços',             icon: <DollarSign size={16} />, desc: 'Valores dos convites' },
     { id: 'textos',         label: 'Textos da Página',   icon: <Eye size={16} />,    desc: 'Hero e rodapé' },
-    { id: 'patrocinadores', label: 'Patrocinadores',     icon: <Award size={16} />,  desc: 'Marcas & QR Code' },
+    { id: 'patrocinadores', label: 'Patrocinadores',     icon: <Award size={16} />,    desc: 'Marcas & QR Code' },
+    { id: 'visual',         label: 'Visual do Telão',    icon: <Palette size={16} />,  desc: 'Fonte, cores, fundo' },
   ]
 
   return (
@@ -376,19 +387,47 @@ export default function ConfiguracoesPage() {
                   </p>
                 </div>
 
-                <div className="cfg-grid-2">
-                  {/* Voz */}
+                {/* Voz Gemini */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
+                  <p className="text-white/60 text-xs font-bold uppercase tracking-widest">🎙 Vozes Gemini (requer chave API)</p>
                   <div>
-                    <label className="cfg-label">Voz</label>
+                    <label className="cfg-label">Voz do Gemini</label>
                     <select value={cfg.voiceName} onChange={e => update('voiceName', e.target.value)} className="cfg-field">
                       {VOICES.map(v => (
                         <option key={v.id} value={v.id}>{v.label}</option>
                       ))}
                     </select>
-                    <p className="cfg-hint">Todas as vozes suportam português</p>
+                    <p className="cfg-hint">Usada quando a chave Gemini está configurada e funcionando</p>
                   </div>
+                </div>
 
-                  {/* Prefixo */}
+                {/* Voz do navegador */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
+                  <p className="text-white/60 text-xs font-bold uppercase tracking-widest">🔈 Voz do Navegador (fallback / sem API)</p>
+                  <div>
+                    <label className="cfg-label">Voz do navegador</label>
+                    {browserVoices.length > 0 ? (
+                      <select
+                        value={cfg.browserVoiceName}
+                        onChange={e => update('browserVoiceName', e.target.value)}
+                        className="cfg-field"
+                      >
+                        <option value="">— Padrão do sistema —</option>
+                        {browserVoices.map(v => (
+                          <option key={v.name} value={v.name}>
+                            {v.name} ({v.lang}){v.localService ? ' ★' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="cfg-field text-white/30 text-sm">Carregando vozes do navegador...</div>
+                    )}
+                    <p className="cfg-hint">★ = voz local (offline). Usada como fallback quando o Gemini não está disponível</p>
+                  </div>
+                </div>
+
+                {/* Prefixo + Teste */}
+                <div className="cfg-grid-2">
                   <div>
                     <label className="cfg-label">Prefixo do anúncio</label>
                     <input
@@ -400,21 +439,21 @@ export default function ConfiguracoesPage() {
                     />
                     <p className="cfg-hint">Ex: &quot;Número&quot; → diz &quot;Número quarenta e dois&quot;</p>
                   </div>
-                </div>
-
-                {/* Botão de teste */}
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-white text-sm font-semibold">Testar voz agora</div>
-                    <div className="text-white/40 text-xs mt-0.5">Reproduz &quot;{cfg.ttsPrefix} quarenta e dois&quot;</div>
+                  <div className="flex flex-col justify-end">
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-white text-sm font-semibold">Testar voz</div>
+                        <div className="text-white/40 text-xs mt-0.5">Número quarenta e dois</div>
+                      </div>
+                      <button
+                        onClick={testVoice}
+                        disabled={testingVoice}
+                        className="flex items-center gap-2 px-4 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 disabled:opacity-40 text-yellow-300 border border-yellow-400/30 rounded-lg text-sm font-semibold transition-colors"
+                      >
+                        {testingVoice ? <><span className="animate-pulse">🔊</span> Falando...</> : <><Volume2 size={15} /> Testar</>}
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={testVoice}
-                    disabled={testingVoice || !cfg.geminiApiKey}
-                    className="flex items-center gap-2 px-4 py-2 bg-yellow-400/20 hover:bg-yellow-400/30 disabled:opacity-40 text-yellow-300 border border-yellow-400/30 rounded-lg text-sm font-semibold transition-colors"
-                  >
-                    {testingVoice ? <><span className="animate-pulse">🔊</span> Reproduzindo...</> : <><Volume2 size={15} /> Testar</>}
-                  </button>
                 </div>
 
                 {testError && (
@@ -428,9 +467,10 @@ export default function ConfiguracoesPage() {
                 <div className="bg-yellow-400/5 border border-yellow-400/15 rounded-xl p-4">
                   <p className="text-yellow-400/80 text-xs font-semibold mb-2 uppercase tracking-wider">Como funciona</p>
                   <ol className="space-y-1 text-white/50 text-xs">
-                    <li>1. Ative a opção acima e insira sua chave gratuita da API Gemini</li>
-                    <li>2. Abra o Telão — cada novo número sorteado será falado automaticamente</li>
-                    <li>3. O áudio usa PCM 24kHz via Web Audio API, sem plugins externos</li>
+                    <li>1. Ative o anúncio de voz acima</li>
+                    <li>2. <strong className="text-white/60">Com chave Gemini:</strong> usa as vozes IA de alta qualidade (Aoede, Kore etc.)</li>
+                    <li>3. <strong className="text-white/60">Sem chave ou se falhar:</strong> usa a voz do navegador selecionada</li>
+                    <li>4. Escolha a voz do navegador (★ = local/offline) para ter sempre um fallback garantido</li>
                   </ol>
                 </div>
               </div>
@@ -905,6 +945,225 @@ export default function ConfiguracoesPage() {
                     <li>3. Cada patrocinador aparece pelo número de vezes definido em &quot;Aparições&quot;</li>
                     <li>4. O QR Code gerado leva ao site, Instagram ou WhatsApp escolhido</li>
                   </ol>
+                </div>
+              </div>
+            )}
+
+            {/* ── VISUAL DO TELÃO ── */}
+            {activeSection === 'visual' && (
+              <div className="p-6 space-y-8">
+                <SectionHeader icon={<Palette size={18} />} title="Visual do Telão" desc="Personalize fonte, cores dos números e fundo da tela de sorteio" />
+
+                {/* Tamanho da fonte */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="cfg-label" style={{ marginBottom: 0 }}>Tamanho da fonte dos números</label>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="flex items-center justify-center rounded-lg font-display font-black"
+                        style={{
+                          width: Math.max(40, cfg.gridFontSize * 2.2),
+                          height: Math.max(32, cfg.gridFontSize * 1.8),
+                          backgroundColor: cfg.gridCardColor || '#fcd34d',
+                          color: cfg.gridFontColor || '#3a1230',
+                          fontSize: cfg.gridFontSize,
+                          fontFamily: 'Bebas Neue, sans-serif',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        42
+                      </div>
+                      <span className="cfg-mono text-yellow-400 text-sm font-bold w-12">{cfg.gridFontSize}px</span>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={16}
+                    max={72}
+                    step={2}
+                    value={cfg.gridFontSize}
+                    onChange={e => update('gridFontSize', Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#fcd34d', cursor: 'pointer' }}
+                  />
+                  <div className="flex justify-between mt-1">
+                    <span className="cfg-hint">16px (mínimo)</span>
+                    <span className="cfg-hint">72px (máximo)</span>
+                  </div>
+                </div>
+
+                {/* Cores dos cartões */}
+                <div>
+                  <p className="cfg-label">Cores dos números na grade</p>
+                  <div className="cfg-grid-2 gap-4">
+                    <div>
+                      <label className="cfg-label">Cor do número (texto)</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={cfg.gridFontColor}
+                          onChange={e => update('gridFontColor', e.target.value)}
+                          style={{ width: 44, height: 36, border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, cursor: 'pointer', background: 'transparent', padding: 2 }}
+                        />
+                        <input
+                          type="text"
+                          value={cfg.gridFontColor}
+                          onChange={e => update('gridFontColor', e.target.value)}
+                          className="cfg-field cfg-mono flex-1"
+                          style={{ padding: '8px 10px' }}
+                          placeholder="#3a1230"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="cfg-label">Fundo — número sorteado</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={cfg.gridCardColor}
+                          onChange={e => update('gridCardColor', e.target.value)}
+                          style={{ width: 44, height: 36, border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, cursor: 'pointer', background: 'transparent', padding: 2 }}
+                        />
+                        <input
+                          type="text"
+                          value={cfg.gridCardColor}
+                          onChange={e => update('gridCardColor', e.target.value)}
+                          className="cfg-field cfg-mono flex-1"
+                          style={{ padding: '8px 10px' }}
+                          placeholder="#fcd34d"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="cfg-label">Fundo — número não sorteado</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={cfg.gridCardUndrawnColor || '#111827'}
+                          onChange={e => update('gridCardUndrawnColor', e.target.value)}
+                          style={{ width: 44, height: 36, border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, cursor: 'pointer', background: 'transparent', padding: 2 }}
+                        />
+                        <input
+                          type="text"
+                          value={cfg.gridCardUndrawnColor}
+                          onChange={e => update('gridCardUndrawnColor', e.target.value)}
+                          className="cfg-field cfg-mono flex-1"
+                          style={{ padding: '8px 10px' }}
+                          placeholder="Vazio = transparente"
+                        />
+                      </div>
+                      <p className="cfg-hint">Deixe vazio para manter semitransparente</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preview da grade */}
+                <div className="rounded-xl border border-white/10 overflow-hidden">
+                  <div className="bg-white/5 px-4 py-2 border-b border-white/10">
+                    <span className="text-white/30 text-xs font-semibold uppercase tracking-widest">Preview da grade</span>
+                  </div>
+                  <div
+                    className="p-4"
+                    style={{ background: `radial-gradient(ellipse at top, ${cfg.pageBackgroundTop} 0%, ${cfg.pageBackground} 70%)` }}
+                  >
+                    <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(15, 1fr)' }}>
+                      {Array.from({ length: 15 }, (_, i) => i + 1).map(n => {
+                        const isDrawn = [3, 7, 11, 14].includes(n)
+                        return (
+                          <div
+                            key={n}
+                            className="flex items-center justify-center rounded font-display font-black"
+                            style={{
+                              fontSize: Math.max(10, cfg.gridFontSize * 0.55),
+                              padding: `${Math.round(cfg.gridFontSize * 0.18)}px 2px`,
+                              backgroundColor: isDrawn
+                                ? cfg.gridCardColor
+                                : (cfg.gridCardUndrawnColor || 'rgba(255,255,255,0.07)'),
+                              color: isDrawn ? cfg.gridFontColor : 'rgba(255,255,255,0.4)',
+                              fontFamily: 'Bebas Neue, sans-serif',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {n}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <p className="text-white/20 text-xs text-center mt-2">Números 3, 7, 11 e 14 simulam sorteados</p>
+                  </div>
+                </div>
+
+                {/* Fundo da página */}
+                <div>
+                  <p className="cfg-label">Fundo da tela de sorteio (gradiente)</p>
+                  <div className="cfg-grid-2 gap-4">
+                    <div>
+                      <label className="cfg-label">Cor base (baixo)</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={cfg.pageBackground}
+                          onChange={e => update('pageBackground', e.target.value)}
+                          style={{ width: 44, height: 36, border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, cursor: 'pointer', background: 'transparent', padding: 2 }}
+                        />
+                        <input
+                          type="text"
+                          value={cfg.pageBackground}
+                          onChange={e => update('pageBackground', e.target.value)}
+                          className="cfg-field cfg-mono flex-1"
+                          style={{ padding: '8px 10px' }}
+                          placeholder="#3a1230"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="cfg-label">Cor do topo (gradiente)</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={cfg.pageBackgroundTop}
+                          onChange={e => update('pageBackgroundTop', e.target.value)}
+                          style={{ width: 44, height: 36, border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, cursor: 'pointer', background: 'transparent', padding: 2 }}
+                        />
+                        <input
+                          type="text"
+                          value={cfg.pageBackgroundTop}
+                          onChange={e => update('pageBackgroundTop', e.target.value)}
+                          className="cfg-field cfg-mono flex-1"
+                          style={{ padding: '8px 10px' }}
+                          placeholder="#7a2960"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Preview do gradiente */}
+                  <div
+                    className="mt-3 rounded-xl border border-white/10 flex items-center justify-center"
+                    style={{
+                      height: 64,
+                      background: `radial-gradient(ellipse at top, ${cfg.pageBackgroundTop} 0%, ${cfg.pageBackground} 70%)`,
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <span className="text-white/30 text-xs font-semibold uppercase tracking-widest">Preview do fundo</span>
+                  </div>
+                </div>
+
+                {/* Botão restaurar visual */}
+                <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                  <p className="cfg-hint">As cores são aplicadas imediatamente ao abrir o telão</p>
+                  <button
+                    onClick={() => {
+                      update('gridFontSize', 24)
+                      update('gridFontColor', '#3a1230')
+                      update('gridCardColor', '#fcd34d')
+                      update('gridCardUndrawnColor', '')
+                      update('pageBackground', '#3a1230')
+                      update('pageBackgroundTop', '#7a2960')
+                    }}
+                    className="flex items-center gap-1.5 text-white/30 hover:text-white/60 text-xs transition-colors px-3 py-2 rounded-lg hover:bg-white/5"
+                  >
+                    <RotateCcw size={12} /> Restaurar padrão visual
+                  </button>
                 </div>
               </div>
             )}

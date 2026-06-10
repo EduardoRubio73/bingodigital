@@ -35,6 +35,15 @@ export interface BingoConfig {
   sponsorPersonalizadoDuration: number
   sponsorSimplesAppearances: number
   sponsorDestaqueAppearances: number
+  // Voz do navegador (fallback Web Speech)
+  browserVoiceName: string
+  // Visual do Telão
+  gridFontSize: number
+  gridFontColor: string
+  gridCardColor: string
+  gridCardUndrawnColor: string
+  pageBackground: string
+  pageBackgroundTop: string
 }
 
 export const DEFAULT_CONFIG: BingoConfig = {
@@ -66,6 +75,13 @@ export const DEFAULT_CONFIG: BingoConfig = {
   sponsorPersonalizadoDuration: 20,
   sponsorSimplesAppearances: 3,
   sponsorDestaqueAppearances: 5,
+  browserVoiceName: '',
+  gridFontSize: 24,
+  gridFontColor: '#3a1230',
+  gridCardColor: '#fcd34d',
+  gridCardUndrawnColor: '',
+  pageBackground: '#3a1230',
+  pageBackgroundTop: '#7a2960',
 }
 
 const CONFIG_KEY = 'bingo_config'

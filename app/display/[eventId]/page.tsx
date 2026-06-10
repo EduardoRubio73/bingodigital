@@ -103,7 +103,7 @@ export default function DisplayPage() {
     speakingRef.current = true
     setTtsStatus('speaking')
     try {
-      await speakNumber(num, cfg.geminiApiKey, cfg.voiceName, cfg.ttsPrefix, tension)
+      await speakNumber(num, cfg.geminiApiKey, cfg.voiceName, cfg.ttsPrefix, tension, cfg.browserVoiceName)
       setTtsStatus('idle')
     } catch (err) {
       console.error('[TTS]', err)
@@ -253,9 +253,11 @@ export default function DisplayPage() {
     site: 'SITE', instagram: 'INSTAGRAM', whatsapp: 'WHATSAPP',
   }
 
+  const pageBg = `radial-gradient(ellipse at top, ${cfg.pageBackgroundTop || '#7a2960'} 0%, ${cfg.pageBackground || '#3a1230'} 70%)`
+
   if (loading || !event) {
     return (
-      <div className="min-h-screen brand-bg flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: pageBg }}>
         <p className="font-display text-white/40 text-4xl">AGUARDANDO EVENTO...</p>
       </div>
     )
@@ -419,7 +421,7 @@ export default function DisplayPage() {
         transition: width 0.3s linear;
       }
     `}</style>
-    <div className="min-h-screen brand-bg flex flex-col select-none overflow-hidden">
+    <div className="min-h-screen flex flex-col select-none overflow-hidden" style={{ background: pageBg }}>
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-2 border-b border-white/10">
         <div className="flex items-center gap-3">
@@ -498,20 +500,33 @@ export default function DisplayPage() {
             {Array.from({ length: 75 }, (_, i) => i + 1).map(n => {
               const isDrawn = event.drawn_numbers.includes(n)
               const isCurrent = n === currentNumber
+              const cellPad = Math.round((cfg.gridFontSize ?? 24) * 0.2)
               return (
                 <div
                   key={n}
-                  className={`flex items-center justify-center rounded-lg font-display text-2xl font-bold transition-all ${
+                  className={`flex items-center justify-center rounded-lg font-display font-bold transition-all ${
                     isCurrent
                       ? `ball animate-ball-pop ${
                           tensionLevel === 'climax'   ? 'ball-red text-white'    :
                           tensionLevel === 'dramatic' ? 'ball-orange text-white' :
-                          'ball-yellow text-[#5C1F47]'
+                          'ball-yellow'
                         }`
-                      : isDrawn
-                      ? 'bg-[#fcd34d] text-[#3a1230] font-black'
-                      : 'bg-white/[0.07] text-white/40'
+                      : ''
                   }`}
+                  style={isCurrent ? {
+                    fontSize: cfg.gridFontSize ?? 24,
+                    padding: cellPad,
+                  } : isDrawn ? {
+                    backgroundColor: cfg.gridCardColor || '#fcd34d',
+                    color: cfg.gridFontColor || '#3a1230',
+                    fontSize: cfg.gridFontSize ?? 24,
+                    padding: cellPad,
+                  } : {
+                    backgroundColor: cfg.gridCardUndrawnColor || 'rgba(255,255,255,0.07)',
+                    color: 'rgba(255,255,255,0.4)',
+                    fontSize: cfg.gridFontSize ?? 24,
+                    padding: cellPad,
+                  }}
                 >
                   {n}
                 </div>
