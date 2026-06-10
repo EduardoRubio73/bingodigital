@@ -62,8 +62,4 @@ npm run lint     # ESLint
 ## 📞 Contato
 
 **Email**: cexrubio@gmail.com  
-**Organização**: Filhos da Luz
-
----
-
-Desenvolvido com ❤️ para a comunidade.
+**Organização**: ZRAgency
