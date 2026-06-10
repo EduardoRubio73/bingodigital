@@ -179,9 +179,32 @@ export default function DisplayPage() {
     document.documentElement.requestFullscreen?.().catch(() => {})
   }, [])
 
-  // Load sponsors on mount
+  // Load sponsors and keep in sync via realtime + periodic refresh
   useEffect(() => {
-    listSponsors().then(setSponsors).catch(console.error)
+    let cancelled = false
+
+    const load = () =>
+      listSponsors()
+        .then(data => { if (!cancelled) setSponsors(data) })
+        .catch(console.error)
+
+    load()
+
+    // Realtime: recarrega sempre que a tabela sponsors mudar
+    const supabase = createClient()
+    const channel = supabase
+      .channel('sponsors-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsors' }, load)
+      .subscribe()
+
+    // Periodic refresh every 30s como fallback
+    const timer = setInterval(load, 30_000)
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+      clearInterval(timer)
+    }
   }, [])
 
   // Rebuild playlist when sponsors change or cycle resets
