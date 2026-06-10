@@ -73,6 +73,26 @@ export function generateAlphanumericCode(sequenceNumber: number): string {
   return `${LETTERS[letterIndex]}${numInLetter}`
 }
 
+// Gera código alfanumérico aleatório que não esteja na lista de usados
+export function generateRandomAlphanumericCode(usedCodes: string[]): string {
+  const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  const all: string[] = []
+  for (const letter of LETTERS) {
+    for (let n = 1; n <= 10; n++) {
+      all.push(`${letter}${n}`)
+    }
+  }
+  // Fisher-Yates shuffle
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[all[i], all[j]] = [all[j], all[i]]
+  }
+  const usedSet = new Set(usedCodes)
+  const found = all.find(code => !usedSet.has(code))
+  // fallback para mais de 260 cartelas: gera código com sufixo numérico
+  return found ?? `X${Date.now()}`
+}
+
 export function formatCurrency(value: number): string {
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }

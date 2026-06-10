@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useId } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { BingoEvent } from '@/lib/supabase/types'
 
 export function useEvent(eventId: string | null) {
   const [event, setEvent] = useState<BingoEvent | null>(null)
   const [loading, setLoading] = useState(true)
+  const uid = useId()
 
   const fetchEvent = useCallback(async () => {
     if (!eventId) { setLoading(false); return }
@@ -25,7 +26,7 @@ export function useEvent(eventId: string | null) {
     if (!eventId) return
     const supabase = createClient()
     const channel = supabase
-      .channel(`event-${eventId}`)
+      .channel(`event-${eventId}-${uid}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',

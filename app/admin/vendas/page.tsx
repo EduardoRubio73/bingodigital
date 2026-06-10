@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Plus, Users, DollarSign, CreditCard, AlertCircle, ChevronDown, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { Plus, Users, DollarSign, CreditCard, AlertCircle, ChevronDown, CheckCircle, XCircle, Clock, TicketX } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { generateCardNumbers, generateAlphanumericCode, formatCurrency } from '@/lib/utils'
+import { generateCardNumbers, generateRandomAlphanumericCode, formatCurrency } from '@/lib/utils'
 import type { BingoEvent, CardSale, BingoCard, PaymentMethod, PaymentStatus } from '@/lib/supabase/types'
 
 type SaleWithCards = CardSale & { cards: BingoCard[] }
@@ -83,13 +83,16 @@ export default function VendasPage() {
     setSubmitting(true)
     const supabase = createClient()
 
-    // Buscar o maior sequence_number atual do evento para continuar a sequência
+    // Buscar codes já usados no evento para gerar códigos sem colisão
     const { data: existingCards } = await supabase
       .from('cards')
-      .select('sequence_number')
+      .select('alphanumeric_code, sequence_number')
       .eq('event_id', selectedEventId)
       .order('sequence_number', { ascending: false })
-      .limit(1)
+
+    const usedCodes: string[] = (existingCards ?? [])
+      .map(c => c.alphanumeric_code)
+      .filter(Boolean) as string[]
 
     const lastSeq = existingCards?.[0]?.sequence_number ?? 0
 
@@ -112,24 +115,30 @@ export default function VendasPage() {
       .single()
 
     if (saleError || !saleData) {
+      console.error('[Vendas] saleError:', saleError)
       toast.error('Erro ao registrar venda')
       setSubmitting(false)
       return
     }
 
-    // Criar as cartelas
-    const cardsToInsert = Array.from({ length: qty }, (_, i) => ({
-      event_id: selectedEventId,
-      player_name: buyerName.trim(),
-      numbers: generateCardNumbers(),
-      marked_numbers: [],
-      sale_id: saleData.id,
-      sequence_number: lastSeq + i + 1,
-      alphanumeric_code: generateAlphanumericCode(lastSeq + i + 1),
-    }))
+    // Criar as cartelas com códigos aleatórios
+    const cardsToInsert = Array.from({ length: qty }, (_, i) => {
+      const code = generateRandomAlphanumericCode(usedCodes)
+      usedCodes.push(code)
+      return {
+        event_id: selectedEventId,
+        player_name: buyerName.trim(),
+        numbers: generateCardNumbers(),
+        marked_numbers: [],
+        sale_id: saleData.id,
+        sequence_number: lastSeq + i + 1,
+        alphanumeric_code: code,
+      }
+    })
 
     const { error: cardsError } = await supabase.from('cards').insert(cardsToInsert)
     if (cardsError) {
+      console.error('[Vendas] cardsError:', cardsError)
       toast.error('Erro ao gerar cartelas')
       setSubmitting(false)
       return
@@ -200,7 +209,7 @@ export default function VendasPage() {
       {selectedEvent && (
         <>
           {/* Estatísticas */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <StatCard
               icon={<CreditCard size={18} />}
               label="Cartelas Vendidas"
@@ -209,10 +218,17 @@ export default function VendasPage() {
               color={vagas === 0 ? 'red' : vagas < 10 ? 'yellow' : 'green'}
             />
             <StatCard
+              icon={<TicketX size={18} />}
+              label="Cartelas Restantes"
+              value={String(vagas)}
+              sub={`${Math.round((vagas / selectedEvent.max_cards) * 100)}% disponível`}
+              color={vagas <= 5 ? 'red' : vagas <= 20 ? 'yellow' : 'green'}
+            />
+            <StatCard
               icon={<DollarSign size={18} />}
               label="Receita Esperada"
-              value={formatCurrency(selectedEvent.cards_sold * selectedEvent.price_per_card)}
-              sub="total se todos pagarem"
+              value={formatCurrency(selectedEvent.max_cards * selectedEvent.price_per_card)}
+              sub="se todas as cartelas venderem"
               color="blue"
             />
             <StatCard
@@ -239,6 +255,26 @@ export default function VendasPage() {
             </div>
           )}
 
+          {/* Lista de vendas — ACIMA do formulário */}
+          {sales.length > 0 && (
+            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/10 flex items-center gap-2">
+                <Users size={18} className="text-yellow-400" />
+                <h2 className="text-white font-semibold">Vendas Registradas ({sales.length})</h2>
+              </div>
+              <div className="divide-y divide-white/5">
+                {sales.map(sale => (
+                  <SaleRow
+                    key={sale.id}
+                    sale={sale}
+                    pricePerCard={selectedEvent.price_per_card}
+                    onUpdateStatus={updatePaymentStatus}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Formulário de venda */}
           {vagas > 0 && (
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
@@ -261,12 +297,12 @@ export default function VendasPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-white/60 text-sm block mb-1">Contato (tel/email)</label>
+                    <label className="text-white/60 text-sm block mb-1">WhatsApp (tel/email)</label>
                     <input
                       type="text"
                       value={buyerContact}
                       onChange={e => setBuyerContact(e.target.value)}
-                      placeholder="(11) 99999-9999 ou email"
+                      placeholder="(11) 99999-9999"
                       className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-yellow-400/50"
                     />
                   </div>
@@ -333,26 +369,6 @@ export default function VendasPage() {
                   {submitting ? 'Registrando...' : <><Plus size={18} /> Registrar Venda e Gerar Cartelas</>}
                 </button>
               </form>
-            </div>
-          )}
-
-          {/* Lista de vendas */}
-          {sales.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-white/10 flex items-center gap-2">
-                <Users size={18} className="text-yellow-400" />
-                <h2 className="text-white font-semibold">Vendas Registradas ({sales.length})</h2>
-              </div>
-              <div className="divide-y divide-white/5">
-                {sales.map(sale => (
-                  <SaleRow
-                    key={sale.id}
-                    sale={sale}
-                    pricePerCard={selectedEvent.price_per_card}
-                    onUpdateStatus={updatePaymentStatus}
-                  />
-                ))}
-              </div>
             </div>
           )}
         </>

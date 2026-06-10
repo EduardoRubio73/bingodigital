@@ -20,7 +20,7 @@ export default function AdminDashboard() {
     const { data } = await supabase
       .from('events')
       .select('id, name, status, win_condition, drawn_numbers, price_per_card, max_cards, cards_sold, prize_conditions, created_at')
-      .eq('status', 'active')
+      .in('status', ['active', 'setup'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()

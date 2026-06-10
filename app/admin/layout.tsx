@@ -36,6 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const links = [
     { href: '/admin', label: 'Sortear' },
+    { href: '/admin/dashboard', label: 'Dashboard' },
     { href: '/admin/vendas', label: 'Vendas' },
     { href: '/admin/players', label: 'Jogadores' },
     { href: '/admin/financeiro', label: 'Financeiro' },
