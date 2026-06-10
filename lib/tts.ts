@@ -74,6 +74,12 @@ function getAudioCtx(): AudioContext {
   return audioCtx
 }
 
+async function resumeCtx(ctx: AudioContext): Promise<void> {
+  if (ctx.state !== 'running') {
+    try { await ctx.resume() } catch { /* ignore */ }
+  }
+}
+
 // Synthesizes a snare drum roll that accelerates over ~2.5 seconds
 async function playDrumRoll(ctx: AudioContext): Promise<void> {
   return new Promise(resolve => {
@@ -83,18 +89,16 @@ async function playDrumRoll(ctx: AudioContext): Promise<void> {
     const buffer = ctx.createBuffer(1, length, sampleRate)
     const data = buffer.getChannelData(0)
 
-    const startHPS = 5    // hits per second at start
-    const endHPS = 28     // hits per second at end (accelerando)
-    const hitDecay = 22   // snare hit decay factor
+    const startHPS = 5
+    const endHPS = 28
+    const hitDecay = 22
 
     for (let i = 0; i < length; i++) {
       const t = i / sampleRate
       const progress = t / duration
       const hps = startHPS + (endHPS - startHPS) * progress
       const posInCycle = (t * hps) % 1.0
-      // Sharp attack, fast exponential decay per hit
       const hitEnv = posInCycle < 0.04 ? 1.0 : Math.exp(-posInCycle * hitDecay)
-      // Crescendo from quiet to loud
       const crescendo = 0.2 + 0.8 * progress
       data[i] = (Math.random() * 2 - 1) * hitEnv * crescendo * 0.55
     }
@@ -102,7 +106,6 @@ async function playDrumRoll(ctx: AudioContext): Promise<void> {
     const source = ctx.createBufferSource()
     source.buffer = buffer
 
-    // Bandpass gives the snare its characteristic crack
     const bandpass = ctx.createBiquadFilter()
     bandpass.type = 'bandpass'
     bandpass.frequency.value = 240
@@ -110,7 +113,6 @@ async function playDrumRoll(ctx: AudioContext): Promise<void> {
 
     const gain = ctx.createGain()
     gain.gain.value = 1.8
-    // Fade out the last 0.3s so it doesn't cut abruptly into the voice
     gain.gain.setValueAtTime(1.8, ctx.currentTime + duration - 0.3)
     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration)
 
@@ -124,59 +126,72 @@ async function playDrumRoll(ctx: AudioContext): Promise<void> {
   })
 }
 
-export async function speakNumber(
-  number: number,
+// Web Speech API fallback — always available, no API key needed
+function speakWithWebSpeech(text: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      reject(new Error('Web Speech API indisponível'))
+      return
+    }
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'pt-BR'
+    utterance.rate = 1.05
+    utterance.pitch = 1.0
+    utterance.onend = () => resolve()
+    utterance.onerror = e => reject(new Error(`Web Speech: ${e.error}`))
+    window.speechSynthesis.speak(utterance)
+  })
+}
+
+// Gemini TTS — high-quality, requires API key and network
+async function speakWithGemini(
+  text: string,
   apiKey: string,
-  voiceName = 'Aoede',
-  prefix = '',
-  tension: TensionLevel = 'normal'
+  voiceName: string
 ): Promise<void> {
-  // Prefix takes priority; otherwise use dynamic phrase by tension level
-  const text = prefix
-    ? `${prefix} ${numberToPortuguese(number)}`
-    : `${pick(PHRASES[tension])} ${numberToPortuguese(number)}`
+  const ctrl = new AbortController()
+  const timeout = setTimeout(() => ctrl.abort(), 12000)
 
-  const ctx = getAudioCtx()
-  if (ctx.state === 'suspended') await ctx.resume()
-
-  // Climax: play drum roll first, then voice
-  if (!prefix && tension === 'climax') {
-    await playDrumRoll(ctx)
+  let res: Response
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text }] }],
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
+          },
+        }),
+        signal: ctrl.signal,
+      }
+    )
+  } finally {
+    clearTimeout(timeout)
   }
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text }] }],
-        generationConfig: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName } },
-          },
-        },
-      }),
-    }
-  )
-
-  if (!res.ok) throw new Error(`Gemini TTS error: ${res.status}`)
+  if (!res.ok) throw new Error(`Gemini TTS HTTP ${res.status}`)
 
   const data = await res.json()
   const b64: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data
-  if (!b64) throw new Error('Sem dados de áudio na resposta')
+  if (!b64) throw new Error('Resposta sem dados de áudio')
 
   const bin = atob(b64)
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+
+  const ctx = getAudioCtx()
+  await resumeCtx(ctx)
 
   const sampleRate = 24000
   const numSamples = bytes.length / 2
   const audioBuffer = ctx.createBuffer(1, numSamples, sampleRate)
   const channel = audioBuffer.getChannelData(0)
   const view = new DataView(bytes.buffer)
-
   for (let i = 0; i < numSamples; i++) {
     channel[i] = view.getInt16(i * 2, true) / 32768
   }
@@ -187,4 +202,45 @@ export async function speakNumber(
   source.start()
 
   return new Promise(resolve => { source.onended = () => resolve() })
+}
+
+export async function speakNumber(
+  number: number,
+  apiKey: string,
+  voiceName = 'Aoede',
+  prefix = '',
+  tension: TensionLevel = 'normal'
+): Promise<void> {
+  const text = prefix
+    ? `${prefix} ${numberToPortuguese(number)}`
+    : `${pick(PHRASES[tension])} ${numberToPortuguese(number)}`
+
+  // Drum roll for climax (once, before any attempt)
+  if (!prefix && tension === 'climax') {
+    try {
+      const ctx = getAudioCtx()
+      await resumeCtx(ctx)
+      await playDrumRoll(ctx)
+    } catch (e) {
+      console.error('[TTS] drum roll falhou:', e)
+    }
+  }
+
+  // Try Gemini up to 3 times with increasing delay
+  const MAX = 3
+  for (let attempt = 0; attempt < MAX; attempt++) {
+    try {
+      await speakWithGemini(text, apiKey, voiceName)
+      return // success
+    } catch (err) {
+      console.warn(`[TTS] Gemini tentativa ${attempt + 1}/${MAX} falhou:`, err)
+      if (attempt < MAX - 1) {
+        await new Promise(r => setTimeout(r, 800 * (attempt + 1)))
+      }
+    }
+  }
+
+  // Fallback: Web Speech API
+  console.warn('[TTS] Usando Web Speech API como fallback')
+  await speakWithWebSpeech(text)
 }

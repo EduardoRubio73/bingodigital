@@ -8,6 +8,10 @@ import { loadConfig } from '@/lib/config'
 import { createClient } from '@/lib/supabase/client'
 import { listSponsors, buildPlaylist, getQrUrl, type Sponsor } from '@/lib/sponsors'
 
+const IDLE_INTERVAL_MS = 3000   // trigger slot-machine animation every 3s when idle
+const IDLE_FRAMES      = 14     // how many random frames to flash
+const IDLE_FRAME_MS    = 70     // ms per random frame
+
 // Bingo card has 25 squares (5x5 flat array). Index 12 = free space.
 const FREE_IDX = 12
 
@@ -75,11 +79,15 @@ export default function DisplayPage() {
   const { eventId } = useParams<{ eventId: string }>()
   const { event, loading } = useEvent(eventId)
   const [currentNumber, setCurrentNumber] = useState<number | null>(null)
+  const [idleDisplayNum, setIdleDisplayNum] = useState<number | null>(null)
   const [animKey, setAnimKey] = useState(0)
   const [ttsStatus, setTtsStatus] = useState<'idle' | 'speaking' | 'error'>('idle')
   const [tensionLevel, setTensionLevel] = useState<TensionLevel>('normal')
   const prevLengthRef = useRef(0)
   const speakingRef = useRef(false)
+  const tensionRef = useRef<TensionLevel>('normal')
+  const idleIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const idleFrameRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Sponsor rotation state
   const [sponsors, setSponsors] = useState<Sponsor[]>([])
@@ -88,10 +96,10 @@ export default function DisplayPage() {
   const [sponsorCycle, setSponsorCycle] = useState(0)
   const [sponsorProgress, setSponsorProgress] = useState(0)
 
-  const triggerSpeak = useCallback(async (num: number, tension: TensionLevel) => {
+  const triggerSpeak = useCallback(async (num: number, tension: TensionLevel, force = false) => {
     const cfg = loadConfig()
     if (!cfg.ttsEnabled || !cfg.geminiApiKey) return
-    if (speakingRef.current) return
+    if (speakingRef.current && !force) return
     speakingRef.current = true
     setTtsStatus('speaking')
     try {
@@ -106,16 +114,18 @@ export default function DisplayPage() {
     }
   }, [])
 
+  useEffect(() => { tensionRef.current = tensionLevel }, [tensionLevel])
+
   useEffect(() => {
     if (!event?.drawn_numbers?.length) return
     if (event.drawn_numbers.length <= prevLengthRef.current) return
 
     const latest = event.drawn_numbers[event.drawn_numbers.length - 1]
     setCurrentNumber(latest)
+    setIdleDisplayNum(null)
     setAnimKey(k => k + 1)
     prevLengthRef.current = event.drawn_numbers.length
 
-    // Check proximity to determine drama level, then speak
     getProximity(eventId, event.drawn_numbers, event.win_condition ?? 'line')
       .then(tension => {
         setTensionLevel(tension)
@@ -123,6 +133,47 @@ export default function DisplayPage() {
       })
       .catch(() => triggerSpeak(latest, 'normal'))
   }, [event?.drawn_numbers, eventId, event?.win_condition, triggerSpeak])
+
+  // Idle slot-machine animation — fires every 3s when screen is idle
+  useEffect(() => {
+    if (idleIntervalRef.current) clearInterval(idleIntervalRef.current)
+    if (idleFrameRef.current) clearTimeout(idleFrameRef.current)
+
+    if (!currentNumber) return
+
+    idleIntervalRef.current = setInterval(() => {
+      let frame = 0
+      const runFrame = () => {
+        frame++
+        if (frame <= IDLE_FRAMES) {
+          setIdleDisplayNum(Math.floor(Math.random() * 75) + 1)
+          idleFrameRef.current = setTimeout(runFrame, IDLE_FRAME_MS)
+        } else {
+          setIdleDisplayNum(null) // reveal the real number
+        }
+      }
+      runFrame()
+    }, IDLE_INTERVAL_MS)
+
+    return () => {
+      if (idleIntervalRef.current) clearInterval(idleIntervalRef.current)
+      if (idleFrameRef.current) clearTimeout(idleFrameRef.current)
+    }
+  }, [currentNumber])
+
+  // Listen for repeat_tts broadcast from admin page
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`bingo-ctrl-${eventId}`)
+      .on('broadcast', { event: 'repeat_tts' }, ({ payload }) => {
+        if (typeof payload?.number === 'number') {
+          triggerSpeak(payload.number, tensionRef.current, true)
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [eventId, triggerSpeak])
 
   useEffect(() => {
     document.documentElement.requestFullscreen?.().catch(() => {})
@@ -387,8 +438,9 @@ export default function DisplayPage() {
                 tensionLevel === 'alert'    ? 'ball-purple' :
                 'ball-yellow'
               }`}
+              style={{ transition: 'opacity 0.05s', opacity: idleDisplayNum ? 0.7 : 1 }}
             >
-              {currentNumber}
+              {idleDisplayNum ?? currentNumber}
             </div>
           ) : (
             <div className="ball ball-gray w-52 h-52 flex items-center justify-center font-display text-6xl text-gray-400">

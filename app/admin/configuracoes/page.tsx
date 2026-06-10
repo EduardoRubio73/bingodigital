@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { loadConfig, saveConfig, DEFAULT_CONFIG, type BingoConfig } from '@/lib/config'
 import { speakNumber } from '@/lib/tts'
+import { toast } from 'sonner'
 import {
   Volume2, VolumeX, Globe, Phone, Calendar, MapPin, DollarSign,
   Save, RotateCcw, Eye, ExternalLink, ChevronRight, CheckCircle, AlertCircle,
@@ -134,7 +135,14 @@ export default function ConfiguracoesPage() {
       setShowSponsorForm(false)
       setEditingId(null)
       setSponsorForm(DEFAULT_SPONSOR_FORM)
-    } catch (e) { console.error(e) }
+      toast.success(editingId ? 'Patrocinador atualizado!' : 'Patrocinador salvo!')
+    } catch (e) {
+      console.error(e)
+      const msg = e instanceof Error ? e.message : 'Erro ao salvar patrocinador'
+      toast.error(msg.includes('does not exist')
+        ? 'Tabela sponsors não encontrada — execute a migration SQL no Supabase Dashboard'
+        : msg)
+    }
     finally { setSavingSponsor(false) }
   }, [sponsorForm, editingId])
 
@@ -144,7 +152,11 @@ export default function ConfiguracoesPage() {
     try {
       await deleteSponsor(id)
       setSponsors(prev => prev.filter(s => s.id !== id))
-    } catch (e) { console.error(e) }
+      toast.success('Patrocinador removido.')
+    } catch (e) {
+      console.error(e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao remover patrocinador')
+    }
     finally { setDeletingId(null) }
   }, [])
 

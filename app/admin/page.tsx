@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { BingoEvent, BingoCard, PrizeCondition } from '@/lib/supabase/types'
 import { checkWinCondition } from '@/lib/utils'
 import Link from 'next/link'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, RotateCcw } from 'lucide-react'
 
 export default function AdminDashboard() {
   const [events, setEvents] = useState<BingoEvent[]>([])
@@ -16,7 +16,9 @@ export default function AdminDashboard() {
   const [claims, setClaims] = useState<BingoCard[]>([])
   const [drawing, setDrawing] = useState(false)
   const [lastDrawn, setLastDrawn] = useState<number | null>(null)
+  const [repeating, setRepeating] = useState(false)
   const [loading, setLoading] = useState(true)
+  const broadcastRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
 
   const fetchEvents = useCallback(async () => {
     const supabase = createClient()
@@ -154,6 +156,30 @@ export default function AdminDashboard() {
     toast.success('Evento iniciado!')
   }, [event])
 
+  // Broadcast repeat signal to the display page via Supabase realtime
+  const handleRepeat = useCallback(async () => {
+    if (!lastDrawn || repeating || !event) return
+    setRepeating(true)
+    try {
+      const supabase = createClient()
+      if (!broadcastRef.current) {
+        broadcastRef.current = supabase.channel(`bingo-ctrl-${event.id}`)
+        await broadcastRef.current.subscribe()
+      }
+      await broadcastRef.current.send({
+        type: 'broadcast',
+        event: 'repeat_tts',
+        payload: { number: lastDrawn },
+      })
+      toast.success(`🔊 Repetindo número ${lastDrawn}`)
+    } catch (e) {
+      console.error('[Repeat]', e)
+      toast.error('Erro ao enviar sinal de repetição')
+    } finally {
+      setRepeating(false)
+    }
+  }, [lastDrawn, repeating, event])
+
   if (loading) {
     return <div className="text-white/60 text-center py-20 font-display text-2xl">CARREGANDO...</div>
   }
@@ -271,6 +297,16 @@ export default function AdminDashboard() {
               >
                 {drawing ? '⏳ Sorteando...' : event.status === 'setup' ? '▶ Inicie o evento primeiro' : '🎲 Sortear Número'}
               </button>
+              {lastDrawn && (
+                <button
+                  onClick={handleRepeat}
+                  disabled={repeating}
+                  className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white font-semibold py-2.5 rounded-xl text-sm transition-all active:scale-95"
+                >
+                  <RotateCcw size={15} className={repeating ? 'animate-spin' : ''} />
+                  {repeating ? 'Enviando...' : `Repetir número ${lastDrawn} no telão`}
+                </button>
+              )}
             </div>
 
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
