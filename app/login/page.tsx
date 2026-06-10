@@ -53,7 +53,7 @@ export default function LoginPage() {
               background: `radial-gradient(circle at 35% 35%, rgba(255,255,255,0.35) 0%, transparent 60%), ${b.color}`,
               boxShadow: `inset -3px -3px 8px rgba(0,0,0,0.35), 0 4px 20px rgba(0,0,0,0.4)`,
               fontSize: b.size * 0.32,
-              animation: `loginFloat ${b.duration} ease-in-out ${b.delay} infinite`,
+              animation: `loginFloat ${b.duration} ease-in-out ${b.delay} infinite alternate`,
               opacity: 0.75,
             }}
           >
@@ -75,7 +75,7 @@ export default function LoginPage() {
         />
 
         {/* Logo */}
-        <div className="relative z-10 flex flex-col items-center gap-4" style={{ animation: 'loginFadeIn 0.7s ease both' }}>
+        <div className="login-fade-in relative z-10 flex flex-col items-center gap-4">
           <Image
             src="/logo.png"
             alt="Bingo Sem Fronteiras"
@@ -84,20 +84,14 @@ export default function LoginPage() {
             className="drop-shadow-2xl"
             priority
           />
-          <p
-            className="font-display text-[#fcd34d] tracking-widest text-lg text-center"
-            style={{ animation: 'loginFadeIn 0.7s 0.3s ease both', opacity: 0 }}
-          >
+          <p className="login-fade-in-delayed font-display text-[#fcd34d] tracking-widest text-lg text-center">
             JOGAR · AJUDAR · TRANSFORMAR
           </p>
         </div>
       </div>
 
       {/* ── Painel Direito ── */}
-      <div
-        className="flex flex-col items-center justify-center md:w-2/5 bg-white px-8 py-16"
-        style={{ animation: 'loginSlideIn 0.6s 0.2s ease both', opacity: 0 }}
-      >
+      <div className="login-slide-in flex flex-col items-center justify-center md:w-2/5 bg-white px-8 py-16">
         <div className="w-full max-w-sm">
           {/* Logo mobile */}
           <div className="flex justify-center mb-6 md:hidden">
@@ -157,20 +151,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <style jsx global>{`
-        @keyframes loginFloat {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          50%       { transform: translateY(-22px) rotate(12deg); }
-        }
-        @keyframes loginFadeIn {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes loginSlideIn {
-          from { opacity: 0; transform: translateX(24px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
     </div>
   )
 }
