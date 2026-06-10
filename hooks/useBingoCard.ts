@@ -14,7 +14,7 @@ export function useBingoCard(cardId: string | null) {
     const supabase = createClient()
     const { data } = await supabase
       .from('cards')
-      .select('id, event_id, player_name, numbers, marked_numbers, bingo_claimed_at, created_at')
+      .select('id, event_id, player_name, numbers, marked_numbers, bingo_claimed_at, created_at, alphanumeric_code, sale_id, sequence_number')
       .eq('id', cardId)
       .single()
     setCard(data)

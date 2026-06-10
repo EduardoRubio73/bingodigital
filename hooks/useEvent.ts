@@ -13,7 +13,7 @@ export function useEvent(eventId: string | null) {
     const supabase = createClient()
     const { data } = await supabase
       .from('events')
-      .select('id, name, status, win_condition, drawn_numbers, created_at')
+      .select('id, name, status, win_condition, drawn_numbers, created_at, price_per_card, max_cards, cards_sold, prize_conditions')
       .eq('id', eventId)
       .single()
     setEvent(data)
