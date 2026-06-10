@@ -783,33 +783,86 @@ export default function LandingPage() {
         .lp-org-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 20px; color: rgba(255,255,255,.35); font-size: 13px; text-decoration: none; border: 1px solid rgba(255,255,255,.1); padding: 8px 18px; border-radius: 30px; transition: color .2s, border-color .2s; }
         .lp-org-link:hover { color: rgba(255,255,255,.65); border-color: rgba(255,255,255,.25); }
 
-        /* RESPONSIVE */
+        /* RESPONSIVE — mobile-first */
+        @media (max-width: 960px) {
+          .lp-inner { padding: 0 16px; }
+        }
+
         @media (max-width: 900px) {
-          .lp-hero { padding: 40px 110px 60px; }
-          .lp-tiers-grid { grid-template-columns: 1fr; max-width: 420px; }
+          .lp-tiers-grid { grid-template-columns: 1fr; max-width: 420px; margin-left: auto; margin-right: auto; }
           .lp-tier-card.featured { transform: none; }
           .lp-tier-card.featured:hover { transform: translateY(-6px); }
         }
+
         @media (max-width: 768px) {
-          .lp-hero { padding: 40px 80px 60px; }
-          .lp-mission-grid { grid-template-columns: 1fr; }
-          .lp-pillars-grid { grid-template-columns: 1fr; }
-          .lp-steps { grid-template-columns: repeat(2, 1fr); gap: 32px; }
-          .lp-event-grid { grid-template-columns: 1fr; }
-          .lp-prizes-grid { grid-template-columns: 1fr; max-width: 380px; margin: 0 auto; }
-          .lp-sponsors-where { grid-template-columns: 1fr; }
+          .lp-mission, .lp-pillars, .lp-how,
+          .lp-event-info, .lp-prizes, .lp-sponsors { padding: 48px 16px; }
+          .lp-ticket  { padding: 56px 16px; }
+          .lp-footer  { padding: 40px 16px 24px; }
+
+          .lp-mission-grid      { grid-template-columns: 1fr; }
+          .lp-pillars-grid      { grid-template-columns: 1fr; }
+          .lp-steps             { grid-template-columns: repeat(2, 1fr); gap: 32px; }
+          .lp-event-grid        { grid-template-columns: 1fr; }
+          .lp-prizes-grid       { grid-template-columns: 1fr; max-width: 380px; margin-left: auto; margin-right: auto; }
+          .lp-sponsors-where    { grid-template-columns: 1fr; }
+
+          .lp-pillars-header { margin-bottom: 32px; }
+          .lp-prizes-header  { margin-bottom: 32px; }
+
           .lp-bingo-card-visual { max-width: 280px; }
           .lp-balls-left, .lp-balls-right { width: 70px; }
+
+          .lp-event-date-block { padding: 28px 24px; }
+          .lp-date-big   { font-size: 52px; }
+          .lp-date-month { font-size: 26px; }
+          .lp-africa-card { padding: 28px 20px; }
+
+          .lp-cta-group { flex-direction: column; align-items: center; }
+          .lp-btn-primary, .lp-btn-secondary {
+            width: 100%; max-width: 360px;
+            text-align: center; padding: 16px 24px;
+          }
+          .lp-whats-btn { width: 100%; justify-content: center; }
+
+          .lp-ticket::before { font-size: 120px; }
+
+          .lp-sponsors-intro { margin-bottom: 32px; }
+          .lp-sponsors-intro p { font-size: 15px; }
         }
+
         @media (max-width: 560px) {
-          .lp-hero { padding: 40px 60px 60px; }
+          .lp-mission, .lp-pillars, .lp-how,
+          .lp-event-info, .lp-prizes, .lp-sponsors { padding: 40px 12px; }
+          .lp-ticket { padding: 48px 12px; }
+          .lp-footer { padding: 36px 12px 20px; }
+
           .lp-steps { grid-template-columns: 1fr; }
           .lp-logos-row { gap: 16px; }
           .lp-balls-left, .lp-balls-right { width: 52px; }
+          .lp-tiers-grid { max-width: 320px; }
+          .lp-date-big   { font-size: 44px; }
+          .lp-date-month { font-size: 22px; }
+          .lp-inner { padding: 0 4px; }
+
+          .lp-section-title { margin-bottom: 16px; }
+          .lp-mission-text p { font-size: 15px; }
+          .lp-pillar-card { padding: 28px 20px; }
+          .lp-prize-card  { padding: 28px 20px; }
+          .lp-event-date-block { padding: 24px 20px; }
+          .lp-ticket-inner { padding: 0 8px; }
         }
+
         @media (max-width: 420px) {
-          .lp-hero { padding: 40px 20px 60px; }
           .lp-balls-left, .lp-balls-right { display: none; }
+          .lp-bingo-card-visual { max-width: 260px; }
+          .lp-bingo-header-cell { font-size: 18px; padding: 8px 2px; }
+          .lp-bingo-cell { font-size: 16px; padding: 8px 2px; }
+          .lp-ticket::before { font-size: 80px; }
+          .lp-price-pill { font-size: 12px; padding: 5px 12px; }
+          .lp-footer-logos { gap: 20px; }
+          .lp-where-card { padding: 16px 18px; }
+          .lp-event-card { padding: 18px 18px; }
         }
       `}</style>
 

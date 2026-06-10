@@ -50,12 +50,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen brand-bg">
-      <header className="border-b border-white/10 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <header className="border-b border-white/10 px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 shrink-0">
           <Image src="/logo.png" alt="Bingo Sem Fronteiras" width={44} height={44} className="rounded-full" />
           <span className="font-display text-white text-xl tracking-widest">BINGO DIGITAL</span>
         </div>
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
           {links.map(l => (
             <Link
               key={l.href}
