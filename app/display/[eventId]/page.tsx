@@ -599,21 +599,79 @@ export default function DisplayPage() {
             ? `${event.prize_conditions.filter((p: { won_at: string | null }) => p.won_at).length}/${event.prize_conditions.length} prêmios entregues`
             : `Condição: ${event.win_condition?.replace('_', ' ')}`}
         </p>
-        {event.status === 'finished' && (
-          <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(10,3,18,0.93)' }}>
-            <p
-              className="font-display animate-celebrate"
-              style={{
-                fontSize: 'clamp(4rem, 12vw, 9rem)',
-                color: '#fcd34d',
-                textShadow: '0 0 40px rgba(252,211,77,0.6), 0 4px 32px rgba(0,0,0,0.9), 0 2px 0 #3a1230',
-                letterSpacing: '0.1em',
-              }}
-            >
-              FIM DE JOGO!
-            </p>
-          </div>
-        )}
+        {event.status === 'finished' && (() => {
+          const winners = (event.prize_conditions ?? []).filter((p: { won_at: string | null }) => p.won_at)
+          const allWonAts = winners.map((p: { won_at: string | null }) => p.won_at!).sort()
+          const finishedAt = allWonAts.at(-1)
+          return (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-8" style={{ background: 'rgba(10,3,18,0.95)' }}>
+              {/* Título */}
+              <p
+                className="font-display animate-celebrate"
+                style={{
+                  fontSize: 'clamp(3rem, 8vw, 6rem)',
+                  color: '#fcd34d',
+                  textShadow: '0 0 40px rgba(252,211,77,0.6), 0 4px 32px rgba(0,0,0,0.9)',
+                  letterSpacing: '0.12em',
+                  lineHeight: 1,
+                }}
+              >
+                FIM DE JOGO!
+              </p>
+
+              {/* Ganhadores */}
+              {winners.length > 0 && (
+                <div className="w-full max-w-3xl space-y-3">
+                  {winners.map((pc: { label: string; prize: string; won_by_name: string | null; won_by_card: string | null; won_at: string | null }, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-4 rounded-2xl px-6 py-4"
+                      style={{ background: 'rgba(252,211,77,0.08)', border: '1px solid rgba(252,211,77,0.25)' }}
+                    >
+                      <span style={{ fontSize: 'clamp(1.5rem, 3vw, 2.5rem)' }}>🏆</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-display" style={{ fontSize: 'clamp(1.4rem, 2.8vw, 2.2rem)', color: '#fcd34d', letterSpacing: 1 }}>
+                          {pc.won_by_name}
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                          {pc.won_by_card && (
+                            <span style={{ fontSize: 'clamp(0.7rem, 1.2vw, 1rem)', color: '#c084fc', background: 'rgba(192,132,252,0.1)', border: '1px solid rgba(192,132,252,0.3)', borderRadius: 6, padding: '1px 8px', fontFamily: 'monospace' }}>
+                              Cartela {pc.won_by_card}
+                            </span>
+                          )}
+                          <span style={{ fontSize: 'clamp(0.7rem, 1.2vw, 1rem)', color: 'rgba(255,255,255,0.5)' }}>{pc.label} — {pc.prize}</span>
+                        </div>
+                      </div>
+                      {pc.won_at && (
+                        <div className="text-right flex-shrink-0">
+                          <div style={{ fontSize: 'clamp(0.65rem, 1vw, 0.85rem)', color: 'rgba(255,255,255,0.3)' }}>
+                            {new Date(pc.won_at).toLocaleDateString('pt-BR')}
+                          </div>
+                          <div style={{ fontSize: 'clamp(0.75rem, 1.1vw, 1rem)', color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace' }}>
+                            {new Date(pc.won_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Rodapé com datas */}
+              <div className="flex items-center gap-6 text-center" style={{ color: 'rgba(255,255,255,0.25)', fontSize: 'clamp(0.65rem, 1vw, 0.85rem)' }}>
+                <span>📅 {new Date(event.created_at).toLocaleDateString('pt-BR')} às {new Date(event.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>•</span>
+                <span>{event.drawn_numbers.length} números sorteados</span>
+                {finishedAt && (
+                  <>
+                    <span>•</span>
+                    <span>🏁 Encerrado às {new Date(finishedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        })()}
       </div>
     </div>
     </>

@@ -25,12 +25,12 @@ export default function AdminDashboard() {
     const { data } = await supabase
       .from('events')
       .select('id, name, status, win_condition, drawn_numbers, price_per_card, max_cards, cards_sold, prize_conditions, created_at')
-      .in('status', ['active', 'setup'])
       .order('created_at', { ascending: false })
     setEvents(data ?? [])
-    if (data && data.length > 0 && !selectedEventId) {
-      setSelectedEventId(data[0].id)
-      setEvent(data[0])
+    const active = data?.find(e => e.status === 'active' || e.status === 'setup')
+    if (active && !selectedEventId) {
+      setSelectedEventId(active.id)
+      setEvent(active)
     }
     setLoading(false)
   }, [selectedEventId])
@@ -184,11 +184,15 @@ export default function AdminDashboard() {
     return <div className="text-white/60 text-center py-20 font-display text-2xl">CARREGANDO...</div>
   }
 
+  const activeEvents = events.filter(e => e.status !== 'finished')
+  const finishedEvents = events.filter(e => e.status === 'finished')
+  const isFinished = event?.status === 'finished'
+
   if (events.length === 0) {
     return (
       <div className="text-center py-20">
         <div className="text-6xl mb-4">🎰</div>
-        <h2 className="font-display text-white text-3xl mb-2">NENHUM EVENTO ATIVO</h2>
+        <h2 className="font-display text-white text-3xl mb-2">NENHUM EVENTO CADASTRADO</h2>
         <p className="text-white/50 mb-6">Crie um novo evento para começar</p>
         <Link href="/admin/setup" className="inline-block bg-[#fcd34d] text-[#5C1F47] font-bold px-6 py-3 rounded-xl hover:bg-yellow-300 transition-colors">
           Criar Evento
@@ -203,23 +207,49 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Seletor de evento */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+      <div className={`border rounded-2xl p-4 ${isFinished ? 'bg-red-500/5 border-red-500/20' : 'bg-white/5 border-white/10'}`}>
         <label className="text-white/50 text-xs uppercase tracking-widest block mb-2">Evento para Sortear</label>
         <div className="relative">
           <select
             value={selectedEventId}
             onChange={e => setSelectedEventId(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-yellow-400/50 appearance-none pr-10"
+            className={`w-full border rounded-xl px-4 py-3 text-white focus:outline-none appearance-none pr-10 ${
+              isFinished
+                ? 'bg-red-500/10 border-red-500/30 focus:border-red-400/50'
+                : 'bg-white/10 border-white/20 focus:border-yellow-400/50'
+            }`}
           >
             <option value="" className="bg-[#5C1F47]">— Selecione um evento —</option>
-            {events.map(ev => (
-              <option key={ev.id} value={ev.id} className="bg-[#5C1F47]">
-                {ev.name} · {ev.status === 'setup' ? '⏸ Aguardando início' : '▶ Ativo'} · {ev.drawn_numbers.length} sorteados
-              </option>
-            ))}
+            {activeEvents.length > 0 && (
+              <optgroup label="▶ Eventos ativos" style={{ background: '#3a1230' }}>
+                {activeEvents.map(ev => (
+                  <option key={ev.id} value={ev.id} className="bg-[#5C1F47]">
+                    {ev.name} · {ev.status === 'setup' ? '⏸ Aguardando início' : '▶ Ativo'} · {ev.drawn_numbers.length} sorteados
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {finishedEvents.length > 0 && (
+              <optgroup label="🔴 Encerrados" style={{ background: '#3a1230' }}>
+                {finishedEvents.map(ev => {
+                  const lastWon = ev.prize_conditions?.filter((p: PrizeCondition) => p.won_at).map((p: PrizeCondition) => p.won_at!).sort().at(-1)
+                  const dateStr = lastWon ? new Date(lastWon).toLocaleDateString('pt-BR') : new Date(ev.created_at).toLocaleDateString('pt-BR')
+                  return (
+                    <option key={ev.id} value={ev.id} className="bg-[#2a0a20]">
+                      🔴 {ev.name} · Encerrado · {ev.drawn_numbers.length} sorteados · {dateStr}
+                    </option>
+                  )
+                })}
+              </optgroup>
+            )}
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" size={16} />
         </div>
+        {isFinished && (
+          <p className="text-red-400/70 text-xs mt-2 flex items-center gap-1">
+            🔴 Evento encerrado — somente visualização
+          </p>
+        )}
       </div>
 
       {event && (
@@ -227,13 +257,13 @@ export default function AdminDashboard() {
           {/* Header */}
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <h1 className="font-display text-white text-4xl">{event.name}</h1>
+              <h1 className={`font-display text-4xl ${isFinished ? 'text-red-300' : 'text-white'}`}>{event.name}</h1>
               <p className="text-white/50 text-sm mt-1">
-                {event.drawn_numbers.length} sorteados · {remaining} restantes · {cards.length} cartelas
+                {event.drawn_numbers.length} sorteados · {isFinished ? 'encerrado' : `${remaining} restantes`} · {cards.length} cartelas
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {event.status === 'setup' && (
+              {!isFinished && event.status === 'setup' && (
                 <button onClick={activateEvent} className="px-4 py-2 bg-green-500/20 text-green-300 rounded-lg text-sm hover:bg-green-500/30 transition-colors">
                   ▶ Iniciar Sorteio
                 </button>
@@ -244,8 +274,108 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Prêmios / condições */}
-          {prizeConditions.length > 0 && (
+          {/* Painel de resultado — apenas para eventos encerrados */}
+          {isFinished && (() => {
+            const winners = prizeConditions.filter(p => p.won_at)
+            const allWonAts = prizeConditions.filter(p => p.won_at).map(p => p.won_at!).sort()
+            const finishedAt = allWonAts.at(-1)
+            const startedAt = event.created_at
+            const winnerCards = cards.filter(c => prizeConditions.some(p => p.won_by_card === (c.alphanumeric_code ?? c.id.slice(0, 6))))
+            return (
+              <div className="bg-red-500/5 border border-red-500/25 rounded-2xl overflow-hidden">
+                {/* Faixa de encerramento */}
+                <div className="bg-red-500/15 border-b border-red-500/20 px-6 py-3 flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-red-400 text-lg">🔴</span>
+                    <span className="text-red-300 font-bold text-sm uppercase tracking-widest">Evento Encerrado</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-white/40">
+                    <span>📅 Criado: {new Date(startedAt).toLocaleDateString('pt-BR')} às {new Date(startedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    {finishedAt && (
+                      <span>🏁 Encerrado: {new Date(finishedAt).toLocaleDateString('pt-BR')} às {new Date(finishedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-5">
+                  {/* Ganhadores */}
+                  {winners.length > 0 && (
+                    <div>
+                      <p className="text-white/40 text-xs uppercase tracking-widest mb-3">🏆 Ganhadores</p>
+                      <div className="space-y-3">
+                        {winners.map((pc, i) => {
+                          const card = cards.find(c => (c.alphanumeric_code ?? c.id.slice(0, 6)) === pc.won_by_card)
+                          return (
+                            <div key={i} className="bg-yellow-400/5 border border-yellow-400/20 rounded-xl px-5 py-4">
+                              <div className="flex items-start justify-between flex-wrap gap-3">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-2xl">🏆</span>
+                                  <div>
+                                    <div className="text-yellow-300 font-bold text-base">{pc.won_by_name}</div>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      {pc.won_by_card && (
+                                        <span className="text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded font-mono">
+                                          Cartela {pc.won_by_card}
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-white/50">{pc.label} — {pc.prize}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                {pc.won_at && (
+                                  <div className="text-xs text-white/35 text-right">
+                                    <div>{new Date(pc.won_at).toLocaleDateString('pt-BR')}</div>
+                                    <div className="text-white/50 font-mono">{new Date(pc.won_at).toLocaleTimeString('pt-BR')}</div>
+                                  </div>
+                                )}
+                              </div>
+                              {/* Cartela do ganhador */}
+                              {card && (
+                                <div className="mt-3 pt-3 border-t border-white/10">
+                                  <p className="text-white/30 text-xs mb-2">Cartela sorteada:</p>
+                                  <div className="grid grid-cols-5 gap-1 max-w-xs">
+                                    {card.numbers.map((n, idx) => (
+                                      <div
+                                        key={idx}
+                                        className={`aspect-square flex items-center justify-center rounded text-xs font-bold font-display ${
+                                          event.drawn_numbers.includes(n)
+                                            ? 'bg-yellow-400 text-[#3a1230]'
+                                            : 'bg-white/10 text-white/40'
+                                        }`}
+                                      >
+                                        {n}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Resumo */}
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    {[
+                      { label: 'Números sorteados', value: event.drawn_numbers.length },
+                      { label: 'Cartelas participantes', value: cards.length },
+                      { label: 'Prêmios entregues', value: winners.length },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-white/5 border border-white/10 rounded-xl py-3 px-2">
+                        <div className="text-white font-bold text-2xl font-display">{value}</div>
+                        <div className="text-white/35 text-xs mt-0.5">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Prêmios / condições — apenas para eventos ativos */}
+          {!isFinished && prizeConditions.length > 0 && (
             <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
               <p className="text-white/40 text-xs uppercase tracking-widest mb-3">Prêmios do Evento</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -279,8 +409,8 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Sortear + últimos */}
-          <div className="grid md:grid-cols-2 gap-6">
+          {/* Sortear + últimos — oculto para eventos encerrados */}
+          {!isFinished && <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center gap-4">
               <p className="text-white/40 text-sm uppercase tracking-widest font-medium">Último Sorteado</p>
               {lastDrawn ? (
@@ -322,7 +452,7 @@ export default function AdminDashboard() {
                 )}
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* Grade 1-75 */}
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
