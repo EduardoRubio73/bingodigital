@@ -43,6 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/dashboard', label: 'Dashboard' },
     { href: '/admin/vendas', label: 'Vendas' },
     { href: '/admin/players', label: 'Jogadores' },
+    { href: '/admin/patrocinadores', label: 'Patrocinadores' },
     { href: '/admin/financeiro', label: 'Financeiro' },
     { href: '/admin/setup', label: 'Novo Evento' },
     { href: '/admin/configuracoes', label: '⚙ Config' },
