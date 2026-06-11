@@ -113,6 +113,10 @@ export default function FinanceiroPage() {
   const globalRate = globalExpected > 0 ? Math.round((globalReceived / globalExpected) * 100) : 0
   const pendingRate = globalExpected > 0 ? Math.round((globalPending / globalExpected) * 100) : 0
 
+  // Totais combinados (cartelas + patrocínios)
+  const totalArrecadado = globalReceived + sponsorRecebido
+  const totalPendenteCombinado = globalPending + sponsorPendente
+
   if (loading) return <div className="text-white/60 text-center py-20 font-display text-2xl">CARREGANDO...</div>
 
   return (
@@ -124,11 +128,11 @@ export default function FinanceiroPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards — Cartelas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard
           icon={<CheckCircle size={16} />}
-          label="Total Recebido"
+          label="Cartelas Recebidas"
           value={formatCurrency(globalReceived)}
           sub={`${globalRate}% do esperado`}
           color="green"
@@ -136,40 +140,30 @@ export default function FinanceiroPage() {
         />
         <KpiCard
           icon={<Clock size={16} />}
-          label="A Receber"
+          label="Cartelas Pendentes"
           value={formatCurrency(globalPending)}
           sub={`${pendingRate}% pendente`}
           color="yellow"
         />
         <KpiCard
-          icon={<DollarSign size={16} />}
-          label="Receita Total"
-          value={formatCurrency(globalExpected)}
-          sub="cartelas emitidas"
-          color="blue"
+          icon={<Award size={16} />}
+          label="Patrocínios Pagos"
+          value={formatCurrency(sponsorRecebido)}
+          sub={`${sponsorSales.filter(s => s.payment_status === 'pago').length} patrocinador(es)`}
+          color="purple"
         />
-        {globalCanceled > 0 ? (
-          <KpiCard
-            icon={<XCircle size={16} />}
-            label="Cancelados"
-            value={formatCurrency(globalCanceled)}
-            sub="vendas canceladas"
-            color="red"
-          />
-        ) : (
-          <KpiCard
-            icon={<Trophy size={16} />}
-            label="Eventos"
-            value={String(data.length)}
-            sub={`${data.filter(d => d.status === 'active').length} ativo(s)`}
-            color="purple"
-          />
-        )}
+        <KpiCard
+          icon={<TrendingUp size={16} />}
+          label="Total Arrecadado"
+          value={formatCurrency(totalArrecadado)}
+          sub={`+ ${formatCurrency(totalPendenteCombinado)} pendente`}
+          color="blue"
+          highlight
+        />
       </div>
 
-      {/* Patrocínios */}
-      {sponsorSales.length > 0 && (
-        <div className="bg-white/5 border border-yellow-400/20 rounded-2xl overflow-hidden">
+      {/* Patrocínios — sempre visível */}
+      <div className="bg-white/5 border border-yellow-400/20 rounded-2xl overflow-hidden">
           <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <Award size={16} className="text-yellow-400" />
@@ -181,6 +175,14 @@ export default function FinanceiroPage() {
             </div>
           </div>
           <div className="divide-y divide-white/5">
+            {sponsorSales.length === 0 && (
+              <div className="px-5 py-8 text-center text-white/25 text-sm">
+                Nenhum patrocínio registrado ainda.{' '}
+                <a href="/admin/patrocinadores" className="text-yellow-400/50 hover:text-yellow-400 underline transition-colors">
+                  Cadastrar patrocinadores
+                </a>
+              </div>
+            )}
             {sponsorSales.map(ss => {
               const scfg = {
                 pago:      { color: 'text-green-400 bg-green-400/10 border-green-400/20',   icon: <CheckCircle size={11} />, label: 'Pago' },
@@ -212,8 +214,7 @@ export default function FinanceiroPage() {
               )
             })}
           </div>
-        </div>
-      )}
+      </div>
 
       {/* Barra de progresso global */}
       {globalExpected > 0 && (

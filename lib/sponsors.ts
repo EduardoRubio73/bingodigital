@@ -104,11 +104,13 @@ export async function listSponsorSales(): Promise<SponsorSale[]> {
 export async function updateSponsorSaleStatus(
   id: string,
   status: SponsorPaymentStatus,
-  amount?: number
+  amount?: number,
+  payment_method?: SponsorPaymentMethod
 ): Promise<void> {
   const supabase = createClient()
   const update: Partial<SponsorSale> = { payment_status: status }
   if (amount !== undefined) update.amount = amount
+  if (payment_method !== undefined) update.payment_method = payment_method
   const { error } = await supabase
     .from('sponsor_sales')
     .update(update)
