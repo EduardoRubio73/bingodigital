@@ -600,8 +600,18 @@ export default function DisplayPage() {
             : `Condição: ${event.win_condition?.replace('_', ' ')}`}
         </p>
         {event.status === 'finished' && (
-          <div className="absolute inset-0 brand-bg/95 flex items-center justify-center">
-            <p className="font-display text-[#fcd34d] text-8xl animate-celebrate">FIM DE JOGO!</p>
+          <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(10,3,18,0.93)' }}>
+            <p
+              className="font-display animate-celebrate"
+              style={{
+                fontSize: 'clamp(4rem, 12vw, 9rem)',
+                color: '#fcd34d',
+                textShadow: '0 0 40px rgba(252,211,77,0.6), 0 4px 32px rgba(0,0,0,0.9), 0 2px 0 #3a1230',
+                letterSpacing: '0.1em',
+              }}
+            >
+              FIM DE JOGO!
+            </p>
           </div>
         )}
       </div>
