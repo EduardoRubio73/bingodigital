@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
-import { AlertTriangle, CheckCircle, TrendingUp, CreditCard, DollarSign, CalendarDays } from 'lucide-react'
+import { AlertTriangle, CheckCircle, TrendingUp, CreditCard, DollarSign, CalendarDays, Award } from 'lucide-react'
+import { listSponsorSales, type SponsorSale } from '@/lib/sponsors'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell
 } from 'recharts'
@@ -21,6 +22,7 @@ interface EventStats {
 
 export default function DashboardPage() {
   const [events, setEvents] = useState<EventStats[]>([])
+  const [sponsorSales, setSponsorSales] = useState<SponsorSale[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
@@ -66,6 +68,14 @@ export default function DashboardPage() {
         pendente: s.pendente,
       }
     }))
+
+    try {
+      const ss = await listSponsorSales()
+      setSponsorSales(ss)
+    } catch (_) {
+      // tabela pode ainda não existir se migration não foi aplicada
+    }
+
     setLoading(false)
   }, [])
 
@@ -74,6 +84,9 @@ export default function DashboardPage() {
   if (loading) {
     return <div className="text-white/50 text-center py-20">Carregando...</div>
   }
+
+  const totalSponsorRecebido = sponsorSales.filter(s => s.payment_status === 'pago').reduce((sum, s) => sum + s.amount, 0)
+  const totalSponsorPendente = sponsorSales.filter(s => s.payment_status === 'pendente').reduce((sum, s) => sum + s.amount, 0)
 
   const totalEventos = events.length
   const totalCartelas = events.reduce((s, e) => s + e.cardsSold, 0)
@@ -146,9 +159,25 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <SummaryCard icon={<CalendarDays size={18} />} label="Total de Eventos" value={String(totalEventos)} color="blue" />
         <SummaryCard icon={<CreditCard size={18} />} label="Cartelas Geradas" value={String(totalCartelas)} color="purple" />
-        <SummaryCard icon={<DollarSign size={18} />} label="Total Arrecadado" value={formatCurrency(totalArrecadado)} color="green" />
+        <SummaryCard icon={<DollarSign size={18} />} label="Cartelas Arrecadado" value={formatCurrency(totalArrecadado)} color="green" />
         <SummaryCard icon={<TrendingUp size={18} />} label="Receita Total Esperada" value={formatCurrency(totalEsperado)} color="yellow" />
       </div>
+
+      {/* Cards de patrocínio */}
+      {(totalSponsorRecebido > 0 || totalSponsorPendente > 0) && (
+        <div className="bg-white/5 border border-yellow-400/20 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Award size={16} className="text-yellow-400" />
+            <h2 className="text-white font-semibold text-sm">Patrocínios</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <SummaryCard icon={<CheckCircle size={18} />} label="Patrocínios Recebidos" value={formatCurrency(totalSponsorRecebido)} color="green" />
+            <SummaryCard icon={<TrendingUp size={18} />} label="Patrocínios Pendentes" value={formatCurrency(totalSponsorPendente)} color="yellow" />
+            <SummaryCard icon={<Award size={18} />} label="Total Geral (cartelas + pat.)" value={formatCurrency(totalArrecadado + totalSponsorRecebido)} color="purple" />
+            <SummaryCard icon={<DollarSign size={18} />} label="Patrocinadores" value={String(new Set(sponsorSales.map(s => s.sponsor_id)).size)} color="blue" />
+          </div>
+        </div>
+      )}
 
       {/* Gráfico de vendas por evento */}
       {events.length > 0 && (

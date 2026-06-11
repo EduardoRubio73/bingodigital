@@ -6,8 +6,12 @@ import type { BingoEvent, CardSale } from '@/lib/supabase/types'
 import { formatCurrency } from '@/lib/utils'
 import {
   DollarSign, Trophy, TrendingUp, Clock, CheckCircle, XCircle,
-  ChevronDown, ChevronUp, CreditCard, Calendar,
+  ChevronDown, ChevronUp, CreditCard, Calendar, Award,
 } from 'lucide-react'
+import {
+  listSponsorSales, updateSponsorSaleStatus,
+  type SponsorSale, type SponsorPaymentStatus,
+} from '@/lib/sponsors'
 
 interface EventFinancials extends BingoEvent {
   sales: CardSale[]
@@ -20,6 +24,7 @@ interface EventFinancials extends BingoEvent {
 
 export default function FinanceiroPage() {
   const [data, setData] = useState<EventFinancials[]>([])
+  const [sponsorSales, setSponsorSales] = useState<SponsorSale[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'active' | 'finished' | 'setup'>('all')
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
@@ -65,6 +70,14 @@ export default function FinanceiroPage() {
     })
 
     setData(financials)
+
+    try {
+      const ss = await listSponsorSales()
+      setSponsorSales(ss)
+    } catch (_) {
+      // migration ainda não aplicada
+    }
+
     setLoading(false)
   }, [])
 
@@ -79,6 +92,18 @@ export default function FinanceiroPage() {
   }, [])
 
   const filtered = filter === 'all' ? data : data.filter(d => d.status === filter)
+
+  const sponsorRecebido = sponsorSales.filter(s => s.payment_status === 'pago').reduce((sum, s) => sum + s.amount, 0)
+  const sponsorPendente = sponsorSales.filter(s => s.payment_status === 'pendente').reduce((sum, s) => sum + s.amount, 0)
+
+  const handleUpdateSponsorStatus = useCallback(async (id: string, status: SponsorPaymentStatus) => {
+    try {
+      await updateSponsorSaleStatus(id, status)
+      setSponsorSales(prev => prev.map(s => s.id === id ? { ...s, payment_status: status } : s))
+    } catch (e) {
+      console.error('[SponsorStatus]', e)
+    }
+  }, [])
 
   const globalReceived = data.reduce((sum, d) => sum + d.totalReceived, 0)
   const globalPending = data.reduce((sum, d) => sum + d.totalPending, 0)
@@ -141,6 +166,54 @@ export default function FinanceiroPage() {
           />
         )}
       </div>
+
+      {/* Patrocínios */}
+      {sponsorSales.length > 0 && (
+        <div className="bg-white/5 border border-yellow-400/20 rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Award size={16} className="text-yellow-400" />
+              <span className="text-white font-semibold">Patrocínios ({sponsorSales.length})</span>
+            </div>
+            <div className="flex items-center gap-4 text-sm">
+              <span className="text-green-400 font-semibold">{formatCurrency(sponsorRecebido)} recebido</span>
+              <span className="text-yellow-400">{formatCurrency(sponsorPendente)} pendente</span>
+            </div>
+          </div>
+          <div className="divide-y divide-white/5">
+            {sponsorSales.map(ss => {
+              const scfg = {
+                pago:      { color: 'text-green-400 bg-green-400/10 border-green-400/20',   icon: <CheckCircle size={11} />, label: 'Pago' },
+                pendente:  { color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20', icon: <Clock size={11} />,        label: 'Pendente' },
+                cancelado: { color: 'text-red-400 bg-red-400/10 border-red-400/20',          icon: <XCircle size={11} />,      label: 'Cancelado' },
+              }[ss.payment_status]
+              const tierLabel: Record<string, string> = { simples: 'Simples', destaque: 'Destaque', personalizado: 'Personalizado' }
+              return (
+                <div key={ss.id} className="px-5 py-3 flex items-center gap-4 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white text-sm font-medium">{ss.sponsor_name}</div>
+                    <div className="text-white/40 text-xs mt-0.5">
+                      {tierLabel[ss.tier] ?? ss.tier} · {ss.payment_method?.toUpperCase()} · {new Date(ss.created_at).toLocaleDateString('pt-BR')}
+                    </div>
+                  </div>
+                  <div className="text-white font-semibold text-sm">{formatCurrency(ss.amount)}</div>
+                  <div className={`flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium ${scfg.color}`}>
+                    {scfg.icon} {scfg.label}
+                  </div>
+                  {ss.payment_status === 'pendente' && (
+                    <button
+                      onClick={() => handleUpdateSponsorStatus(ss.id, 'pago')}
+                      className="text-xs bg-green-500/20 hover:bg-green-500/30 text-green-300 border border-green-500/30 px-3 py-1 rounded-lg transition-colors"
+                    >
+                      Marcar Pago
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Barra de progresso global */}
       {globalExpected > 0 && (

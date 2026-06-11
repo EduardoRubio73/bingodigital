@@ -11,7 +11,9 @@ import {
 } from 'lucide-react'
 import {
   listSponsors, upsertSponsor, deleteSponsor, getQrUrl,
+  registerSponsorSale, TIER_DEFAULT_AMOUNTS,
   type Sponsor, type SponsorInsert, type SponsorTier, type QrType,
+  type SponsorPaymentMethod, type SponsorPaymentStatus,
 } from '@/lib/sponsors'
 
 const VOICES = [
@@ -27,10 +29,15 @@ const VOICES = [
 
 type Section = 'voz' | 'evento' | 'contatos' | 'organizacao' | 'precos' | 'textos' | 'patrocinadores' | 'visual'
 
-const DEFAULT_SPONSOR_FORM: SponsorInsert = {
+interface SponsorFormState extends SponsorInsert {
+  payment_status: SponsorPaymentStatus
+}
+
+const DEFAULT_SPONSOR_FORM: SponsorFormState = {
   name: '', logo_url: '', contact_name: '', site_url: '', instagram_url: '',
-  whatsapp_number: '', qr_type: 'site', tier: 'simples', sponsorship_amount: '',
-  appearances: 3, duration_seconds: 10, active: true,
+  whatsapp_number: '', qr_type: 'site', tier: 'simples', sponsorship_amount: '100',
+  payment_method: 'pix', appearances: 3, duration_seconds: 10, active: true,
+  payment_status: 'pendente',
 }
 
 const TIER_LABELS: Record<SponsorTier, string> = {
@@ -59,7 +66,7 @@ export default function ConfiguracoesPage() {
   const [sponsors, setSponsors] = useState<Sponsor[]>([])
   const [sponsorLoading, setSponsorLoading] = useState(false)
   const [showSponsorForm, setShowSponsorForm] = useState(false)
-  const [sponsorForm, setSponsorForm] = useState<SponsorInsert>(DEFAULT_SPONSOR_FORM)
+  const [sponsorForm, setSponsorForm] = useState<SponsorFormState>(DEFAULT_SPONSOR_FORM)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [savingSponsor, setSavingSponsor] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -116,21 +123,21 @@ export default function ConfiguracoesPage() {
 
   const openNewSponsorForm = useCallback(() => {
     setEditingId(null)
-    setSponsorForm({ ...DEFAULT_SPONSOR_FORM, appearances: cfg.sponsorSimplesAppearances, duration_seconds: cfg.sponsorSimplesDuration })
+    setSponsorForm({ ...DEFAULT_SPONSOR_FORM, appearances: cfg.sponsorSimplesAppearances, duration_seconds: cfg.sponsorSimplesDuration, sponsorship_amount: TIER_DEFAULT_AMOUNTS.simples })
     setShowSponsorForm(true)
   }, [cfg.sponsorSimplesAppearances, cfg.sponsorSimplesDuration])
 
   const openEditSponsorForm = useCallback((s: Sponsor) => {
     setEditingId(s.id)
-    setSponsorForm({ name: s.name, logo_url: s.logo_url, contact_name: s.contact_name, site_url: s.site_url, instagram_url: s.instagram_url, whatsapp_number: s.whatsapp_number, qr_type: s.qr_type, tier: s.tier, sponsorship_amount: s.sponsorship_amount, appearances: s.appearances, duration_seconds: s.duration_seconds, active: s.active })
+    setSponsorForm({ name: s.name, logo_url: s.logo_url, contact_name: s.contact_name, site_url: s.site_url, instagram_url: s.instagram_url, whatsapp_number: s.whatsapp_number, qr_type: s.qr_type, tier: s.tier, sponsorship_amount: s.sponsorship_amount, payment_method: 'pix', appearances: s.appearances, duration_seconds: s.duration_seconds, active: s.active, payment_status: 'pendente' })
     setShowSponsorForm(true)
   }, [])
 
   const handleTierChange = useCallback((tier: SponsorTier) => {
-    const defaults: Record<SponsorTier, { appearances: number; duration_seconds: number }> = {
-      simples:       { appearances: cfg.sponsorSimplesAppearances,  duration_seconds: cfg.sponsorSimplesDuration },
-      destaque:      { appearances: cfg.sponsorDestaqueAppearances, duration_seconds: cfg.sponsorDestaqueDuration },
-      personalizado: { appearances: 1,                              duration_seconds: cfg.sponsorPersonalizadoDuration },
+    const defaults: Record<SponsorTier, { appearances: number; duration_seconds: number; sponsorship_amount: string }> = {
+      simples:       { appearances: cfg.sponsorSimplesAppearances,  duration_seconds: cfg.sponsorSimplesDuration,       sponsorship_amount: TIER_DEFAULT_AMOUNTS.simples },
+      destaque:      { appearances: cfg.sponsorDestaqueAppearances, duration_seconds: cfg.sponsorDestaqueDuration,      sponsorship_amount: TIER_DEFAULT_AMOUNTS.destaque },
+      personalizado: { appearances: 1,                              duration_seconds: cfg.sponsorPersonalizadoDuration, sponsorship_amount: TIER_DEFAULT_AMOUNTS.personalizado },
     }
     setSponsorForm(f => ({ ...f, tier, ...defaults[tier] }))
   }, [cfg])
@@ -139,20 +146,37 @@ export default function ConfiguracoesPage() {
     if (!sponsorForm.name.trim()) return
     setSavingSponsor(true)
     try {
-      const payload = editingId ? { ...sponsorForm, id: editingId } : sponsorForm
+      const { payment_status, payment_method: pmMethod, ...sponsorPayload } = sponsorForm
+      const payload = editingId ? { ...sponsorPayload, id: editingId } : sponsorPayload
       const saved = await upsertSponsor(payload)
       setSponsors(prev => editingId ? prev.map(s => s.id === editingId ? saved : s) : [...prev, saved])
+
+      // Registrar em sponsor_sales apenas ao criar (não ao editar)
+      if (!editingId && sponsorForm.sponsorship_amount) {
+        const amount = parseFloat(sponsorForm.sponsorship_amount.replace(',', '.'))
+        if (!isNaN(amount) && amount > 0) {
+          await registerSponsorSale({
+            sponsor_id: saved.id,
+            sponsor_name: saved.name,
+            tier: saved.tier,
+            amount,
+            payment_method: (pmMethod ?? 'pix') as SponsorPaymentMethod,
+            payment_status,
+            notes: null,
+          })
+        }
+      }
+
       setShowSponsorForm(false)
       setEditingId(null)
       setSponsorForm(DEFAULT_SPONSOR_FORM)
-      toast.success(editingId ? 'Patrocinador atualizado!' : 'Patrocinador salvo!')
+      toast.success(editingId ? 'Patrocinador atualizado!' : 'Patrocinador salvo e venda registrada!')
     } catch (e) {
       console.error('[Sponsor Save]', e)
-      // Supabase throws PostgrestError (not instanceof Error) — extract .message safely
       const msg = (e as { message?: string })?.message ?? String(e)
       toast.error(
         msg.includes('does not exist') || msg.includes('relation')
-          ? 'Tabela sponsors não existe — execute a migration no Supabase Dashboard'
+          ? 'Tabela não existe — execute a migration no Supabase Dashboard'
           : msg,
         { duration: 8000 }
       )
@@ -839,6 +863,29 @@ export default function ConfiguracoesPage() {
                         <div>
                           <label className="cfg-label">Valor do patrocínio (R$)</label>
                           <input type="text" value={sponsorForm.sponsorship_amount} onChange={e => setSponsorForm(f => ({ ...f, sponsorship_amount: e.target.value }))} placeholder="100" className="cfg-field" />
+                        </div>
+                      </div>
+
+                      {/* Forma de pagamento + Status */}
+                      <div className="cfg-grid-2">
+                        <div>
+                          <label className="cfg-label">Forma de recebimento</label>
+                          <select value={sponsorForm.payment_method ?? 'pix'} onChange={e => setSponsorForm(f => ({ ...f, payment_method: e.target.value as SponsorPaymentMethod }))} className="cfg-field">
+                            <option value="pix">PIX</option>
+                            <option value="dinheiro">Dinheiro</option>
+                            <option value="cartao">Cartão</option>
+                            <option value="transferencia">Transferência</option>
+                            <option value="outro">Outro</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="cfg-label">Status do pagamento</label>
+                          <select value={sponsorForm.payment_status} onChange={e => setSponsorForm(f => ({ ...f, payment_status: e.target.value as SponsorPaymentStatus }))} className="cfg-field">
+                            <option value="pendente">Pendente</option>
+                            <option value="pago">Pago</option>
+                            <option value="cancelado">Cancelado</option>
+                          </select>
+                          <p className="cfg-hint">Registrado em Vendas ao salvar</p>
                         </div>
                       </div>
 

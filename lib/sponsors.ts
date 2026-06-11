@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/client'
 
 export type QrType = 'site' | 'instagram' | 'whatsapp'
 export type SponsorTier = 'simples' | 'destaque' | 'personalizado'
+export type SponsorPaymentMethod = 'pix' | 'dinheiro' | 'cartao' | 'transferencia' | 'outro'
+export type SponsorPaymentStatus = 'pendente' | 'pago' | 'cancelado'
 
 export interface Sponsor {
   id: string
@@ -22,7 +24,29 @@ export interface Sponsor {
 
 export type SponsorInsert = Omit<Sponsor, 'id' | 'created_at'>
 
+export interface SponsorSale {
+  id: string
+  sponsor_id: string | null
+  sponsor_name: string
+  tier: string
+  amount: number
+  payment_method: SponsorPaymentMethod
+  payment_status: SponsorPaymentStatus
+  notes: string | null
+  created_at: string
+}
+
+export type SponsorSaleInsert = Omit<SponsorSale, 'id' | 'created_at'>
+
+// Preços padrão por tier
+export const TIER_DEFAULT_AMOUNTS: Record<SponsorTier, string> = {
+  simples: '100',
+  destaque: '500',
+  personalizado: '',
+}
+
 const COLS = 'id, name, logo_url, contact_name, site_url, instagram_url, whatsapp_number, qr_type, tier, sponsorship_amount, appearances, duration_seconds, active, created_at'
+const SALE_COLS = 'id, sponsor_id, sponsor_name, tier, amount, payment_method, payment_status, notes, created_at'
 
 export async function listSponsors(): Promise<Sponsor[]> {
   const supabase = createClient()
@@ -52,6 +76,42 @@ export async function deleteSponsor(id: string): Promise<void> {
   const { error } = await supabase
     .from('sponsors')
     .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function registerSponsorSale(sale: SponsorSaleInsert): Promise<SponsorSale> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('sponsor_sales')
+    .insert(sale)
+    .select(SALE_COLS)
+    .single()
+  if (error) throw error
+  return data as SponsorSale
+}
+
+export async function listSponsorSales(): Promise<SponsorSale[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('sponsor_sales')
+    .select(SALE_COLS)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as SponsorSale[]
+}
+
+export async function updateSponsorSaleStatus(
+  id: string,
+  status: SponsorPaymentStatus,
+  amount?: number
+): Promise<void> {
+  const supabase = createClient()
+  const update: Partial<SponsorSale> = { payment_status: status }
+  if (amount !== undefined) update.amount = amount
+  const { error } = await supabase
+    .from('sponsor_sales')
+    .update(update)
     .eq('id', id)
   if (error) throw error
 }
